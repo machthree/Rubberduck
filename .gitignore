@@ -183,3 +183,10 @@ CodeGraphData/
 /Rubberduck.Deployment/Properties/launchSettings.json
 /Rubberduck.Deployment/Rubberduck.API.idl
 /Rubberduck.Deployment/Rubberduck.idl
+
+# Generated Artifacts
+Rubberduck.CodeAnalysis.xml
+
+#Gradle 
+/.gradle/
+/Rubberduck.CodeAnalysis/Rubberduck.CodeAnalysis.xml

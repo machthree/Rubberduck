@@ -174,9 +174,6 @@
   <data name="Assert_LBoundMismatchFormat" xml:space="preserve">
     <value>Dimension {0}: valeur LBound attendue {1}; valeur LBound réelle {2}. {3}</value>
   </data>
-  <data name="Assert_NotImplemented" xml:space="preserve">
-    <value>Pas implémenté.</value>
-  </data>
   <data name="Assert_ValueReferenceMismatch" xml:space="preserve">
     <value>[attendu] est une valeur, mais [réel] est une référence.</value>
   </data>
@@ -203,5 +200,8 @@
   </data>
   <data name="TestRunner_TestInitializeFailure" xml:space="preserve">
     <value>Une erreur s'est produite durant l'exécution de @TestInitialize. Le test sera ignoré.</value>
+  </data>
+  <data name="Assert_NotImplemented" xml:space="preserve">
+    <value>Pas implémenté.</value>
   </data>
 </root>

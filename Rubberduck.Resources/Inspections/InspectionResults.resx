@@ -132,6 +132,7 @@
   </data>
   <data name="IdentifierNameInspection" xml:space="preserve">
     <value>Consider renaming {0} '{1}'.</value>
+    <comment>{0} declaration type; {1} identifier name</comment>
   </data>
   <data name="WriteOnlyPropertyInspection" xml:space="preserve">
     <value>Property '{0}' has no getter.</value>
@@ -235,9 +236,6 @@
     <value>Local variable '{0}' is not declared.</value>
     <comment>{0} variable name</comment>
   </data>
-  <data name="ImplicitDefaultMemberAssignmentInspection" xml:space="preserve">
-    <value>Assignment to '{0}' implicitly assigns default member of class '{1}'.</value>
-  </data>
   <data name="AggregateInspection" xml:space="preserve">
     <value>{0} ({1} results).</value>
     <comment>{0} inspection description, {1} result count</comment>
@@ -259,10 +257,6 @@
   <data name="IllegalAnnotationInspection" xml:space="preserve">
     <value>Annotation '{0}' is illegal in this context.</value>
     <comment>{0} annotation name</comment>
-  </data>
-  <data name="MissingAnnotationInspection" xml:space="preserve">
-    <value>Module or member '{0}' has a '{1}' attribute, but no corresponding annotation.</value>
-    <comment>{0} module/member; {1} specified attribute</comment>
   </data>
   <data name="MissingAttributeInspection" xml:space="preserve">
     <value>Module or member '{0}' has a '{1}' annotation, but no corresponding attribute.</value>
@@ -323,13 +317,13 @@
     <value>Case clause '{0}' cannot be reached.</value>
   </data>
   <data name="UnreachableCaseInspection_CaseElse" xml:space="preserve">
-    <value>Unreachable Case Else: all matches exist within prior Case statement(s).</value>
+    <value>'Case Else' statement is unreachable</value>
   </data>
   <data name="UnreachableCaseInspection_TypeMismatch" xml:space="preserve">
-    <value>Unreachable: Case Statement will cause a Run-time error 13 (Mismatch).</value>
+    <value>'Case' statement will cause run-time error 13 (type mismatch).</value>
   </data>
   <data name="UnreachableCaseInspection_Unreachable" xml:space="preserve">
-    <value>Unreachable: Never matches or is equivalent to a prior Case statement.</value>
+    <value>'Case' statement is unreachable</value>
   </data>
   <data name="UnhandledOnErrorResumeNextInspection" xml:space="preserve">
     <value>Errors are ignored but never handled again.</value>
@@ -355,10 +349,10 @@
     <comment>{0} Procedure name</comment>
   </data>
   <data name="UnreachableCaseInspection_InherentlyUnreachable" xml:space="preserve">
-    <value>Unreachable: Case Statement contains invalid range clause(s).</value>
+    <value>'Case' statement Range Clauses must be expressed '[x] To [y]' where [x] is less than or equal to [y]'.</value>
   </data>
   <data name="UnreachableCaseInspection_Overflow" xml:space="preserve">
-    <value>Unreachable: Case Statement will cause a Run-time error 6 (Overflow).</value>
+    <value>'Case' statement will cause run-time error 6 (Overflow)</value>
   </data>
   <data name="DuplicatedAnnotationInspection" xml:space="preserve">
     <value>Annotation '{0}' is duplicated.</value>
@@ -373,7 +367,7 @@
     <value>'IsMissing' will always return false with the passed argument.</value>
   </data>
   <data name="IsMissingWithNonArgumentParameterInspection" xml:space="preserve">
-    <value>'IsMissing' is passed an expresssion that is not an argument to the enclosing procedure.</value>
+    <value>'IsMissing' is passed an expression that is not an argument to the enclosing procedure.</value>
   </data>
   <data name="AssignmentNotUsedInspection" xml:space="preserve">
     <value>An assignment is immediately overridden by another assignment or is never referenced.</value>
@@ -388,5 +382,120 @@
   <data name="ExcelUdfNameIsValidCellReferenceInspection" xml:space="preserve">
     <value>'{0}' is hidden by a valid Excel cell reference.</value>
     <comment>{0} Function name</comment>
+  </data>
+  <data name="AttributeValueOutOfSyncInspection" xml:space="preserve">
+    <value>The attribute value(s) for attribute {0} ({1}) are out of sync with the {2} annotation. </value>
+    <comment>{0} attribute name, {1} attribute values, {2} annotation name</comment>
+  </data>
+  <data name="MissingMemberAnnotationInspection" xml:space="preserve">
+    <value>Member '{0}' has a '{1}' attribute with value(s) '{2}', but no corresponding annotation.</value>
+    <comment>{0} member; {1} specified attribute; {2} specified values</comment>
+  </data>
+  <data name="MissingModuleAnnotationInspection" xml:space="preserve">
+    <value>Module '{0}' has a '{1}' attribute with value(s) '{2}', but no corresponding annotation.</value>
+    <comment>{0} module; {1} specified attribute; {2} specified values</comment>
+  </data>
+  <data name="KeywordsUsedAsMemberInspection" xml:space="preserve">
+    <value>Keyword used as an identifier for the member '{0}'</value>
+    <comment>{0} Member name</comment>
+  </data>
+  <data name="LineContinuationBetweenKeywordsInspection" xml:space="preserve">
+    <value>Line continuation(s) in unexpected places. </value>
+  </data>
+  <data name="NonBreakingSpaceIdentifierInspection" xml:space="preserve">
+    <value>Non-breaking space encountered in identifier '{0}'</value>
+    <comment>{0} Identifier</comment>
+  </data>
+  <data name="ThunderCode_Base" xml:space="preserve">
+    <value>{0}
+Andrew "ThunderFrame" Jackson would be proud! 
+You're seeing this inspection result because there's no way that's real code and you're just pushing the limits of Rubberduck's parsing and resolving capabilities, right? ...RIGHT? 
+In memoriam, 1972-2018</value>
+    <comment>{0} ThunderCode easter egg inspection description</comment>
+  </data>
+  <data name="NegativeLineNumberInspection" xml:space="preserve">
+    <value>Negative line number encountered</value>
+  </data>
+  <data name="OnErrorGoToMinusOneInspection" xml:space="preserve">
+    <value>On Error GoTo -1 encountered</value>
+  </data>
+  <data name="ObsoleteWhileWendStatementInspection" xml:space="preserve">
+    <value>'While...Wend' conditional loop can be written as a 'Do While...Loop' block.</value>
+  </data>
+  <data name="SetAssignmentWithIncompatibleObjectTypeInspection" xml:space="preserve">
+    <value>To the variable '{0}' of declared type '{1}' a value is set assigned with the incompatible declared type '{2}'.  </value>
+    <comment>{0} variable name, {1} variable declared type, {2} rhs declared type</comment>
+  </data>
+  <data name="EmptyMethodInspection" xml:space="preserve">
+    <value>{0} '{1}' contains no executable statements.</value>
+    <comment>{0} Method kind, {1} Method name</comment>
+  </data>
+  <data name="ImplementedInterfaceMemberInspection" xml:space="preserve">
+    <value>Interface class module '{2}' contains a concrete implementation for {0} '{1}'.</value>
+    <comment>{0} Method kind, {1} Method name, {2} interface class module name</comment>
+  </data>
+  <data name="ArgumentWithIncompatibleObjectTypeInspection" xml:space="preserve">
+    <value>The argument '{2}' of type '{3}' is passed to the parameter '{0}' of the incompatible type '{1}'.</value>
+    <comment>{0} parameter name, {1} parameter declared type, {2} argument expression text, {3} argument set type name</comment>
+  </data>
+  <data name="ValueRequiredInspection" xml:space="preserve">
+    <value>In a context that requires a value type, the expression '{0}' of object type '{1}' is used that does not have a suitable default member.</value>
+    <comment>{0} expression; {1} type</comment>
+  </data>
+  <data name="ProcedureRequiredInspection" xml:space="preserve">
+    <value>In a context that requires a procedure, the expression '{0}' of object type '{1}' is used that does not have a suitable default member.</value>
+    <comment>{0} expression; {1} type</comment>
+  </data>
+  <data name="DefaultMemberRequiredInspection" xml:space="preserve">
+    <value>The expression '{0}' requires a default member access, but the type '{1}' does not have a suitable default member.</value>
+    <comment>{0} expression; {1} type</comment>
+  </data>
+  <data name="UseOfBangNotationInspection" xml:space="preserve">
+    <value>The expression '{0}' uses bang notation.</value>
+    <comment>{0} expression</comment>
+  </data>
+  <data name="UseOfRecursiveBangNotationInspection" xml:space="preserve">
+    <value>The expression '{0}' uses a recursive bang operator.</value>
+    <comment>{0} expression</comment>
+  </data>
+  <data name="UseOfUnboundBangNotationInspection" xml:space="preserve">
+    <value>The expression '{0}' uses an unbound bang operator.</value>
+    <comment>{0} expression</comment>
+  </data>
+  <data name="ObjectWhereProcedureIsRequiredInspection" xml:space="preserve">
+    <value>The expression '{0}' is used in a context that requires a procedure, which leads to a call to the default member '{1}'.</value>
+    <comment>{0} expression; {1} default member</comment>
+  </data>
+  <data name="ObjectWhereProcedureIsRequiredInspection_Unbound" xml:space="preserve">
+    <value>The expression '{0}' is used in a context that requires a procedure, which leads to a call to a default member that cannot be determined at compile time.</value>
+    <comment>{0} expression</comment>
+  </data>
+  <data name="IndexedDefaultMemberAccessInspection" xml:space="preserve">
+    <value>The expression '{0}' contains an indexed default member access to '{1}'.</value>
+    <comment>{0} expression; {1} default member</comment>
+  </data>
+  <data name="IndexedRecursiveDefaultMemberAccessInspection" xml:space="preserve">
+    <value>The expression '{0}' contains an indexed recursive default member access to '{1}'.</value>
+    <comment>{0} expression; {1} default member</comment>
+  </data>
+  <data name="IndexedUnboundDefaultMemberAccessInspection" xml:space="preserve">
+    <value>The expression '{0}' contains an indexed unbound default member access.</value>
+    <comment>{0} expression</comment>
+  </data>
+  <data name="ImplicitDefaultMemberAccessInspection" xml:space="preserve">
+    <value>On the expression '{0}', there is an implicit default member access to '{1}'.</value>
+    <comment>{0} expression; {1} default member</comment>
+  </data>
+  <data name="ImplicitRecursiveDefaultMemberAccessInspection" xml:space="preserve">
+    <value>On the expression '{0}', there is an implicit recursive default member access to '{1}'.</value>
+    <comment>{0} expression; {1} default member</comment>
+  </data>
+  <data name="ImplicitUnboundDefaultMemberAccessInspection" xml:space="preserve">
+    <value>On the expression '{0}', there is an implicit unbound default member access.</value>
+    <comment>{0} expression</comment>
+  </data>
+  <data name="SuspiciousLetAssignmentInspection" xml:space="preserve">
+    <value>There is an assignment from the default member of the result of expression '{1}' to that of the expression '{0}'.</value>
+    <comment>{0} lhsExpression; {1} rhsExpression</comment>
   </data>
 </root>

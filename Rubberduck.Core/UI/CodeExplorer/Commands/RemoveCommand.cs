@@ -1,105 +1,114 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Windows.Forms;
-using NLog;
 using Rubberduck.Interaction;
 using Rubberduck.Navigation.CodeExplorer;
 using Rubberduck.Resources.CodeExplorer;
-using Rubberduck.UI.Command;
+using Rubberduck.VBEditor;
 using Rubberduck.VBEditor.ComManagement;
+using Rubberduck.VBEditor.Events;
 using Rubberduck.VBEditor.SafeComWrappers;
+using Rubberduck.VBEditor.SafeComWrappers.Abstract;
 
 namespace Rubberduck.UI.CodeExplorer.Commands
 {
-    public class RemoveCommand : CommandBase, IDisposable
+    public class RemoveCommand : CodeExplorerCommandBase
     {
-        private readonly ISaveFileDialog _saveFileDialog;
+        private readonly ExportCommand _exportCommand;
+        private readonly IProjectsRepository _projectsRepository;
         private readonly IMessageBox _messageBox;
-        private readonly IProjectsProvider _projectsProvider;
+        private readonly IVBE _vbe;
 
-        private readonly Dictionary<ComponentType, string> _exportableFileExtensions = new Dictionary<ComponentType, string>
+        public RemoveCommand(
+            ExportCommand exportCommand, 
+            IProjectsRepository projectsRepository, 
+            IMessageBox messageBox, 
+            IVBE vbe, 
+            IVbeEvents vbeEvents) 
+            : base(vbeEvents)
         {
-            { ComponentType.StandardModule, ".bas" },
-            { ComponentType.ClassModule, ".cls" },
-            { ComponentType.Document, ".cls" },
-            { ComponentType.UserForm, ".frm" }
-        };
-
-        public RemoveCommand(ISaveFileDialog saveFileDialog, IMessageBox messageBox, IProjectsProvider projectsProvider) : base(LogManager.GetCurrentClassLogger())
-        {
-            _saveFileDialog = saveFileDialog;
-            _saveFileDialog.OverwritePrompt = true;
-
+            _exportCommand = exportCommand;
+            _projectsRepository = projectsRepository;
             _messageBox = messageBox;
-            _projectsProvider = projectsProvider;
+            _vbe = vbe;
+
+            AddToCanExecuteEvaluation(SpecialEvaluateCanExecute);
         }
 
-        protected override bool EvaluateCanExecute(object parameter)
+        public override IEnumerable<Type> ApplicableNodeTypes { get; } = new List<Type> { typeof(CodeExplorerComponentViewModel)};
+
+        private bool SpecialEvaluateCanExecute(object parameter)
         {
-            if (!(parameter is CodeExplorerComponentViewModel))
-            {
-                return false;
-            }
-
-            var node = (CodeExplorerComponentViewModel)parameter;
-            var componentType = node.Declaration.QualifiedName.QualifiedModuleName.ComponentType;
-
-            if (componentType == ComponentType.Document)
-            {
-                return false;
-            }
-
-            return _exportableFileExtensions.Select(s => s.Key).Contains(componentType);
+            return _exportCommand.CanExecute(parameter) &&
+                   parameter is CodeExplorerComponentViewModel viewModel &&
+                   viewModel.Declaration != null &&
+                   viewModel.Declaration.QualifiedModuleName.ComponentType != ComponentType.Document;
         }
 
         protected override void OnExecute(object parameter)
         {
-            var message = string.Format(CodeExplorerUI.ExportBeforeRemove_Prompt, ((CodeExplorerComponentViewModel)parameter).Name);
-            var result = _messageBox.Confirm(message, CodeExplorerUI.ExportBeforeRemove_Caption, ConfirmationOutcome.Yes);
-
-            if (result == ConfirmationOutcome.Cancel)
+            if (!(parameter is CodeExplorerComponentViewModel node) ||
+                node.Declaration == null ||
+                node.Declaration.QualifiedModuleName.ComponentType == ComponentType.Document)
             {
                 return;
             }
 
-            if (result == ConfirmationOutcome.Yes && !ExportFile((CodeExplorerComponentViewModel)parameter))
-            {
-                return;
-            }
+            RemoveComponent(node.Declaration.QualifiedModuleName);
+        }
 
+        public bool RemoveComponent(QualifiedModuleName qualifiedModuleName, bool promptToExport = true)
+        {
+            if (promptToExport && !TryExport(qualifiedModuleName))
+            {
+                return false;
+            }
+            
             // No file export or file successfully exported--now remove it
-
-            // I know this will never be null because of the CanExecute
-            var declaration = ((CodeExplorerComponentViewModel)parameter).Declaration;
-            var qualifiedModuleName = declaration.QualifiedName.QualifiedModuleName;
-            var components = _projectsProvider.ComponentsCollection(qualifiedModuleName.ProjectId);
-            components?.Remove(_projectsProvider.Component(qualifiedModuleName));
-        }
-
-        private bool ExportFile(CodeExplorerComponentViewModel node)
-        {
-            var component = _projectsProvider.Component(node.Declaration.QualifiedName.QualifiedModuleName);
-
-            _exportableFileExtensions.TryGetValue(component.Type, out string ext);
-
-            _saveFileDialog.FileName = component.Name + ext;
-            var result = _saveFileDialog.ShowDialog();
-
-            if (result == DialogResult.OK)
+            try
             {
-                component.Export(_saveFileDialog.FileName);
+                _projectsRepository.RemoveComponent(qualifiedModuleName);
+            }
+            catch (Exception ex)
+            {
+                _messageBox.NotifyWarn(ex.Message, string.Format(CodeExplorerUI.RemoveError_Caption, qualifiedModuleName.ComponentName));
+                return false;
             }
 
-            return result == DialogResult.OK;
+            return true;
         }
 
-        public void Dispose()
+        private bool TryExport(QualifiedModuleName qualifiedModuleName)
         {
-            if (_saveFileDialog != null)
+            var component = _projectsRepository.Component(qualifiedModuleName);
+            if (component is null)
             {
-                _saveFileDialog.Dispose();
+                return false; // Edge-case, component already gone.
             }
+
+            if (_vbe.Kind == VBEKind.Standalone && component.IsSaved)
+            {
+                return true; // File already up-to-date
+            }
+
+            // "Do you want to export '{qualifiedModuleName.Name}' before removing?" (localized)
+            var message = string.Format(CodeExplorerUI.ExportBeforeRemove_Prompt, qualifiedModuleName.Name);
+
+            switch (_messageBox.Confirm(message, CodeExplorerUI.ExportBeforeRemove_Caption, ConfirmationOutcome.Yes))
+            {
+                case ConfirmationOutcome.No:
+                    // User elected to remove without export, return success.
+                    return true;
+
+                case ConfirmationOutcome.Yes:
+                    if (_exportCommand.PromptFileNameAndExport(qualifiedModuleName))
+                    {
+                        // Export complete
+                        return true;
+                    }
+                    break;
+            }
+
+            return false; // Save dialog cancelled or export failed (failures will have already been displayed and logged by this point)
         }
     }
 }

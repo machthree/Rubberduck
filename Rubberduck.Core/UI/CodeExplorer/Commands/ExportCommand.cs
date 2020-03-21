@@ -1,80 +1,113 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using NLog;
+using Rubberduck.Interaction;
 using Rubberduck.Navigation.CodeExplorer;
 using Rubberduck.UI.Command;
+using Rubberduck.VBEditor;
 using Rubberduck.VBEditor.ComManagement;
+using Rubberduck.VBEditor.Extensions;
 using Rubberduck.VBEditor.SafeComWrappers;
+using Rubberduck.VBEditor.SafeComWrappers.Abstract;
 
 namespace Rubberduck.UI.CodeExplorer.Commands
 {
-    public class ExportCommand : CommandBase, IDisposable
+    public class ExportCommand : CommandBase
     {
-        private readonly ISaveFileDialog _saveFileDialog;
-        private readonly IProjectsProvider _projectsProvider;
-        private readonly Dictionary<ComponentType, string> _exportableFileExtensions = new Dictionary<ComponentType, string>
+        private static readonly Dictionary<ComponentType, string> VBAExportableFileExtensions = new Dictionary<ComponentType, string>
         {
-            { ComponentType.StandardModule, ".bas" },
-            { ComponentType.ClassModule, ".cls" },
-            { ComponentType.Document, ".cls" },
-            { ComponentType.UserForm, ".frm" }
+            { ComponentType.StandardModule, ComponentTypeExtensions.StandardExtension },
+            { ComponentType.ClassModule, ComponentTypeExtensions.ClassExtension },
+            { ComponentType.Document, ComponentTypeExtensions.DocClassExtension },
+            { ComponentType.UserForm, ComponentTypeExtensions.FormExtension }
         };
 
-        public ExportCommand(ISaveFileDialog saveFileDialog, IProjectsProvider projectsProvider) 
-            : base(LogManager.GetCurrentClassLogger())
+        private static readonly Dictionary<ComponentType, string> VB6ExportableFileExtensions = new Dictionary<ComponentType, string>
         {
-            _saveFileDialog = saveFileDialog;
-            _saveFileDialog.OverwritePrompt = true;
+            { ComponentType.StandardModule, ComponentTypeExtensions.StandardExtension },
+            { ComponentType.ClassModule, ComponentTypeExtensions.ClassExtension },
+            { ComponentType.VBForm, ComponentTypeExtensions.FormExtension },
+            { ComponentType.MDIForm, ComponentTypeExtensions.FormExtension },
+            { ComponentType.UserControl, ComponentTypeExtensions.UserControlExtension },
+            { ComponentType.DocObject, ComponentTypeExtensions.DocObjectExtension },
+            { ComponentType.ActiveXDesigner, ComponentTypeExtensions.ActiveXDesignerExtension },
+            { ComponentType.PropPage, ComponentTypeExtensions.PropertyPageExtension },
+            { ComponentType.ResFile, ComponentTypeExtensions.ResourceExtension },            
+        };
 
-            _projectsProvider = projectsProvider;
+        private readonly IFileSystemBrowserFactory _dialogFactory;
+        private readonly Dictionary<ComponentType, string> _exportableFileExtensions;
+
+        public ExportCommand(IFileSystemBrowserFactory dialogFactory, IMessageBox messageBox, IProjectsProvider projectsProvider, IVBE vbe)
+        {
+            _dialogFactory = dialogFactory;
+            MessageBox = messageBox;
+            ProjectsProvider = projectsProvider;
+
+            _exportableFileExtensions =
+                vbe.Kind == VBEKind.Hosted
+                    ? VBAExportableFileExtensions
+                    : VB6ExportableFileExtensions;
+
+            AddToCanExecuteEvaluation(SpecialEvaluateCanExecute);
         }
 
-        protected override bool EvaluateCanExecute(object parameter)
+        protected IMessageBox MessageBox { get; }
+        protected IProjectsProvider ProjectsProvider { get; }
+        
+        private bool SpecialEvaluateCanExecute(object parameter)
         {
-            if (!(parameter is CodeExplorerComponentViewModel))
+            if (!(parameter is CodeExplorerComponentViewModel node) ||
+                node.Declaration == null)
             {
                 return false;
             }
 
-            try
-            {
-                var node = (CodeExplorerComponentViewModel)parameter;
-                var componentType = node.Declaration.QualifiedName.QualifiedModuleName.ComponentType;
-                return _exportableFileExtensions.Select(s => s.Key).Contains(componentType);
-            }
-            catch (COMException)
-            {
-                // thrown when the component reference is stale
-                return false;
-            }
+            var componentType = node.Declaration.QualifiedName.QualifiedModuleName.ComponentType;
+
+            return _exportableFileExtensions.ContainsKey(componentType);
         }
 
         protected override void OnExecute(object parameter)
         {
-            var node = (CodeExplorerComponentViewModel)parameter;
-            var qualifiedModuleName = node.Declaration.QualifiedName.QualifiedModuleName;
-
-            string ext;
-            _exportableFileExtensions.TryGetValue(qualifiedModuleName.ComponentType, out ext);
-
-            _saveFileDialog.FileName = qualifiedModuleName.ComponentName + ext;
-            var result = _saveFileDialog.ShowDialog();
-
-            if (result == DialogResult.OK)
+            if (!(parameter is CodeExplorerComponentViewModel node) ||
+                node.Declaration == null)
             {
-                var component = _projectsProvider.Component(qualifiedModuleName);
-                component.Export(_saveFileDialog.FileName);
+                return;
             }
+
+            PromptFileNameAndExport(node.Declaration.QualifiedName.QualifiedModuleName);
         }
 
-        public void Dispose()
+        public bool PromptFileNameAndExport(QualifiedModuleName qualifiedModule)
         {
-            if (_saveFileDialog != null)
+            if (!_exportableFileExtensions.TryGetValue(qualifiedModule.ComponentType, out var extension))
             {
-                _saveFileDialog.Dispose();
+                return false;
+            }
+
+            using (var dialog = _dialogFactory.CreateSaveFileDialog())
+            {
+                dialog.OverwritePrompt = true;
+                dialog.FileName = qualifiedModule.ComponentName + extension;
+
+                var result = dialog.ShowDialog();
+                if (result != DialogResult.OK)
+                {
+                    return false;
+                }
+
+                var component = ProjectsProvider.Component(qualifiedModule);
+                try
+                {
+                    component.Export(dialog.FileName);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn(ex, $"Failed to export component {qualifiedModule.Name}");
+                    MessageBox.NotifyWarn(ex.Message, string.Format(Resources.CodeExplorer.CodeExplorerUI.ExportError_Caption, qualifiedModule.ComponentName));
+                }                    
+                return true;
             }
         }
     }

@@ -11,7 +11,6 @@ using Rubberduck.Parsing.Annotations;
 using Rubberduck.Parsing.Grammar;
 using Rubberduck.Parsing.Symbols;
 using Rubberduck.Parsing.VBA.ComReferenceLoading;
-using Rubberduck.Parsing.VBA.Extensions;
 using Rubberduck.VBEditor;
 using Rubberduck.VBEditor.Extensions;
 using Rubberduck.VBEditor.SafeComWrappers;
@@ -140,11 +139,14 @@ namespace Rubberduck.Parsing.VBA.DeclarationResolving
                 }
                 Logger.Debug($"Creating declarations for module {module.Name}.");
 
-                var annotations = _state.GetModuleAnnotations(module).ToList();
+                var annotationsOnWhiteSpaceLines = _state.GetModuleAnnotations(module)
+                    .Where(a => a.AnnotatedLine.HasValue)
+                    .GroupBy(a => a.AnnotatedLine.Value)
+                    .ToDictionary();
                 var attributes = _state.GetModuleAttributes(module);
                 var membersAllowingAttributes = _state.GetMembersAllowingAttributes(module);
 
-                var moduleDeclaration = NewModuleDeclaration(module, tree, annotations, attributes, projectDeclaration);
+                var moduleDeclaration = NewModuleDeclaration(module, tree, annotationsOnWhiteSpaceLines, attributes, projectDeclaration);
                 _state.AddDeclaration(moduleDeclaration);
 
                 var controlDeclarations = DeclarationsFromControls(moduleDeclaration);
@@ -153,18 +155,12 @@ namespace Rubberduck.Parsing.VBA.DeclarationResolving
                     _state.AddDeclaration(declaration);
                 }
 
-                var declarationsListener = new DeclarationSymbolsListener(moduleDeclaration, annotations, attributes, membersAllowingAttributes);
+                var declarationsListener = new DeclarationSymbolsListener(moduleDeclaration, annotationsOnWhiteSpaceLines, attributes, membersAllowingAttributes);
                 ParseTreeWalker.Default.Walk(declarationsListener, tree);
                 foreach (var createdDeclaration in declarationsListener.CreatedDeclarations)
                 {
                     _state.AddDeclaration(createdDeclaration);
                 }
-
-                //This is a hack to deal with annotations on module level variables.
-                var memberAnnotations = declarationsListener.CreatedDeclarations
-                    .SelectMany(declaration => declaration.Annotations)
-                    .ToHashSet();
-                moduleDeclaration.RemoveAnnotations(memberAnnotations);
             }
             catch (Exception exception)
             {
@@ -178,13 +174,12 @@ namespace Rubberduck.Parsing.VBA.DeclarationResolving
         private ModuleDeclaration NewModuleDeclaration(
             QualifiedModuleName qualifiedModuleName,
             IParseTree tree,
-            ICollection<IAnnotation> annotations,
-            IDictionary<(string scopeIdentifier, DeclarationType scopeType),
-                Attributes> attributes,
+            IDictionary<int, List<IParseTreeAnnotation>> annotationsOnWhiteSpaceLines,
+            IDictionary<(string scopeIdentifier, DeclarationType scopeType),Attributes> attributes,
             Declaration projectDeclaration)
         {
             var moduleAttributes = ModuleAttributes(qualifiedModuleName, attributes);
-            var moduleAnnotations = FindModuleAnnotations(tree, annotations);
+            var moduleAnnotations = FindModuleAnnotations(tree, annotationsOnWhiteSpaceLines);
 
             switch (qualifiedModuleName.ComponentType)
             {
@@ -202,6 +197,13 @@ namespace Rubberduck.Parsing.VBA.DeclarationResolving
                         projectDeclaration,
                         qualifiedModuleName.ComponentName,
                         true,
+                        moduleAnnotations,
+                        moduleAttributes);
+                case ComponentType.Document:
+                    return new DocumentModuleDeclaration(
+                        qualifiedModuleName.QualifyMemberName(qualifiedModuleName.ComponentName),
+                        projectDeclaration,
+                        qualifiedModuleName.ComponentName,
                         moduleAnnotations,
                         moduleAttributes);
                 default:
@@ -228,50 +230,28 @@ namespace Rubberduck.Parsing.VBA.DeclarationResolving
             return moduleAttributes;
         }
 
-        private static IEnumerable<IAnnotation> FindModuleAnnotations(IParseTree tree, ICollection<IAnnotation> annotations)
+        private static IEnumerable<IParseTreeAnnotation> FindModuleAnnotations(IParseTree tree, IDictionary<int, List<IParseTreeAnnotation>> annotationsOnWhiteSpaceLines)
         {
-            if (annotations == null)
+            if (annotationsOnWhiteSpaceLines == null)
             {
                 return null;
             }
 
-            var lastDeclarationsSectionLine = LastDeclarationsSectionLine(tree, annotations);
+            var firstModuleBodyLine = FirstModuleBodyElementLine(tree);
 
-            //There is no module body.
-            if (lastDeclarationsSectionLine == null)
+            //There is no module body and, thus, no restrictions on the placement of module annotations on whitespace lines.
+            if (firstModuleBodyLine == null)
             {
-                return annotations;
+                return annotationsOnWhiteSpaceLines.Values.SelectMany(annotationList => annotationList)
+                    .Where(annotation => annotation.Annotation.Target.HasFlag(AnnotationTarget.Module));
             }
 
-            var lastPossibleModuleAnnotationLine = lastDeclarationsSectionLine.Value;
-            var moduleAnnotations = annotations.Where(annotation => annotation.QualifiedSelection.Selection.EndLine <= lastPossibleModuleAnnotationLine);
-            return moduleAnnotations.ToList();
-        }
-
-        private static int? LastDeclarationsSectionLine(IParseTree tree, ICollection<IAnnotation> annotations)
-        {
-            var firstModuleBodyElementLine = FirstModuleBodyElementLine(tree);
-
-            if (firstModuleBodyElementLine == null)
-            {
-                return null;
-            }
-
-            //The VBE uses 1-based lines.
-            for (var currentLine = firstModuleBodyElementLine.Value - 1; currentLine >= 1; currentLine--)
-            {
-                if (annotations.Any(annotation => annotation.QualifiedSelection.Selection.StartLine <= currentLine
-                                                   && annotation.QualifiedSelection.Selection.EndLine >=
-                                                   currentLine))
-                {
-                    continue;
-                }
-
-                return currentLine;
-            }
-
-            //There is no declaration section.
-            return 0;
+            var lastPossibleAnnotatedLine = firstModuleBodyLine.Value;
+            var moduleAnnotations = annotationsOnWhiteSpaceLines.Keys
+                .Where(line => (line <= lastPossibleAnnotatedLine))
+                .SelectMany(line => annotationsOnWhiteSpaceLines[line])
+                .Where(annotation => annotation.Annotation.Target.HasFlag(AnnotationTarget.Module));
+            return moduleAnnotations;
         }
 
         private static int? FirstModuleBodyElementLine(IParseTree tree)

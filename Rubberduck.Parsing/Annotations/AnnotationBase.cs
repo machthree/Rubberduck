@@ -1,25 +1,27 @@
-﻿using Rubberduck.Parsing.Grammar;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Rubberduck.Parsing.Grammar;
 using Rubberduck.VBEditor;
 
 namespace Rubberduck.Parsing.Annotations
 {
     public abstract class AnnotationBase : IAnnotation
     {
-        public const string ANNOTATION_MARKER = "'@";
+        public bool AllowMultiple { get; }
+        public string Name { get; }
+        public AnnotationTarget Target { get; }
 
-        protected AnnotationBase(AnnotationType annotationType, QualifiedSelection qualifiedSelection, VBAParser.AnnotationContext context)
+        public AnnotationBase(string name, AnnotationTarget target, bool allowMultiple = false)
         {
-            AnnotationType = annotationType;
-            QualifiedSelection = qualifiedSelection;
-            Context = context;
+            Name = name;
+            Target = target;
+            AllowMultiple = allowMultiple;
         }
 
-        public AnnotationType AnnotationType { get; }
-        public QualifiedSelection QualifiedSelection { get; }
-        public VBAParser.AnnotationContext Context { get; }
-
-        public virtual bool AllowMultiple { get; } = false;
-
-        public override string ToString() => $"Annotation Type: {AnnotationType}";
+        public virtual IReadOnlyList<string> ProcessAnnotationArguments(IEnumerable<string> arguments)
+        {
+            return arguments.ToList();
+        }
     }
 }

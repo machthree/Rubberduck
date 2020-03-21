@@ -36,7 +36,7 @@ namespace Rubberduck.Parsing.ComReflection
 
         [DataMember(IsRequired = true)]
         private string _valueType = Tokens.Object;
-        public string ValueType => IsArray ? $"{_valueType}()" : _valueType;
+        public string ValueType => _valueType;
 
         [DataMember(IsRequired = true)]
         private Guid _enumGuid = Guid.Empty;
@@ -118,7 +118,7 @@ namespace Rubberduck.Parsing.ComReflection
                             _enumGuid = attribs.guid;
                         }
                         IsReferenceType = ReferenceTypeKinds.Contains(attribs.typekind);
-                        _valueType = new ComDocumentation(refTypeInfo, -1).Name;
+                        _valueType = new ComDocumentation(refTypeInfo, ComDocumentation.LibraryIndex).Name;
                     }
                 }
                 catch (COMException) { }

@@ -2,15 +2,16 @@
 using System.Globalization;
 using System.Windows.Threading;
 using Rubberduck.Settings;
+using Rubberduck.SettingsProvider;
 
 namespace Rubberduck.UI.Settings
 {
     public class Settings : IDisposable
     {
-        private static IGeneralConfigService _configService;
+        private static IConfigurationService<Configuration> _configService;
         private static CultureInfo _cultureInfo = null;
 
-        public Settings(IGeneralConfigService configService)
+        public Settings(IConfigurationService<Configuration> configService)
         {
             _configService = configService;
             _configService.SettingsChanged += SettingsChanged;
@@ -48,7 +49,7 @@ namespace Rubberduck.UI.Settings
 
             try
             {
-                var config = _configService.LoadConfiguration();
+                var config = _configService.Read();
                 _cultureInfo = CultureInfo.GetCultureInfo(config.UserSettings.GeneralSettings.Language.Code);
                 
                 Dispatcher.CurrentDispatcher.Thread.CurrentUICulture = _cultureInfo;
@@ -61,10 +62,23 @@ namespace Rubberduck.UI.Settings
 
         public void Dispose()
         {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private bool _isDisposed;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_isDisposed || !disposing)
+            {
+                return;
+            }
+
             if (_configService != null)
             {
                 _configService.SettingsChanged -= SettingsChanged;
             }
+            _isDisposed = true;
         }
     }
 }

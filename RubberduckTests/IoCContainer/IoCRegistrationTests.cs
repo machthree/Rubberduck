@@ -4,7 +4,9 @@ using Moq;
 using NUnit.Framework;
 using Rubberduck.Settings;
 using Rubberduck.Root;
+using Rubberduck.Runtime;
 using Rubberduck.VBEditor.SourceCodeHandling;
+using Rubberduck.VBEditor.VbeRuntime;
 using RubberduckTests.Mocks;
 
 namespace RubberduckTests.IoCContainer
@@ -23,17 +25,18 @@ namespace RubberduckTests.IoCContainer
             var ide = ideMock.Object;
             var addInBuilder = new MockAddInBuilder();
             var addin = addInBuilder.Build().Object;
-
+            var vbeNativeApi = new Mock<IVbeNativeApi>();
+            var beepInterceptor = new Mock<IBeepInterceptor>();
             var initialSettings = new GeneralSettings
             {
-                EnableExperimentalFeatures = new List<ExperimentalFeatures>
+                EnableExperimentalFeatures = new List<ExperimentalFeature>
                 {
-                    new ExperimentalFeatures()
+                    new ExperimentalFeature()
                 }
             };
 
             using (var container =
-                new WindsorContainer().Install(new RubberduckIoCInstaller(ide, addin, initialSettings)))
+                new WindsorContainer().Install(new RubberduckIoCInstaller(ide, addin, initialSettings, vbeNativeApi.Object, beepInterceptor.Object)))
             {
             }
 
@@ -51,11 +54,13 @@ namespace RubberduckTests.IoCContainer
             var ide = ideMock.Object;
             var addInBuilder = new MockAddInBuilder();
             var addin = addInBuilder.Build().Object;
+            var vbeNativeApi = new Mock<IVbeNativeApi>();
+            var beepInterceptor = new Mock<IBeepInterceptor>();
 
-            var initialSettings = new GeneralSettings {EnableExperimentalFeatures = new List<ExperimentalFeatures>()};
+            var initialSettings = new GeneralSettings {EnableExperimentalFeatures = new List<ExperimentalFeature>()};
 
             using (var container =
-                new WindsorContainer().Install(new RubberduckIoCInstaller(ide, addin, initialSettings)))
+                new WindsorContainer().Install(new RubberduckIoCInstaller(ide, addin, initialSettings, vbeNativeApi.Object, beepInterceptor.Object)))
             {
             }
 

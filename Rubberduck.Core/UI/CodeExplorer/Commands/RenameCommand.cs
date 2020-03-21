@@ -1,50 +1,68 @@
 using System;
-using NLog;
-using Rubberduck.Interaction;
+using System.Collections.Generic;
 using Rubberduck.Navigation.CodeExplorer;
-using Rubberduck.Parsing.Rewriter;
 using Rubberduck.Parsing.VBA;
+using Rubberduck.Refactorings;
+using Rubberduck.Refactorings.Exceptions;
 using Rubberduck.Refactorings.Rename;
-using Rubberduck.UI.Command;
-using Rubberduck.UI.Refactorings;
-using Rubberduck.UI.Refactorings.Rename;
-using Rubberduck.VBEditor.SafeComWrappers.Abstract;
+using Rubberduck.VBEditor.Events;
+using Rubberduck.UI.Command.Refactorings.Notifiers;
 
 namespace Rubberduck.UI.CodeExplorer.Commands
 {
-    public class RenameCommand : CommandBase, IDisposable
+    public sealed class RenameCommand : CodeExplorerCommandBase
     {
-        private readonly IVBE _vbe;
-        private readonly RubberduckParserState _state;
-        private readonly IRewritingManager _rewritingManager;
-        private readonly IRefactoringDialog<RenameViewModel> _view;
-        private readonly IMessageBox _msgBox;
-
-        public RenameCommand(IVBE vbe, IRefactoringDialog<RenameViewModel> view, RubberduckParserState state, IMessageBox msgBox, IRewritingManager rewritingManager) : base(LogManager.GetCurrentClassLogger())
+        private static readonly Type[] ApplicableNodes =
         {
-            _vbe = vbe;
-            _state = state;
-            _rewritingManager = rewritingManager;
-            _view = view;
-            _msgBox = msgBox;
+            typeof(CodeExplorerProjectViewModel),
+            typeof(CodeExplorerComponentViewModel),
+            typeof(CodeExplorerMemberViewModel)
+        };
+
+        private readonly IParserStatusProvider _parserStatusProvider;
+        private readonly IRefactoring _refactoring;
+        private readonly IRefactoringFailureNotifier _failureNotifier;
+
+        public RenameCommand(
+            RenameRefactoring refactoring, 
+            RenameFailedNotifier renameFailedNotifier, 
+            IParserStatusProvider parserStatusProvider, 
+            IVbeEvents vbeEvents) 
+            : base(vbeEvents)
+        {
+            _refactoring = refactoring;
+            _failureNotifier = renameFailedNotifier;
+            _parserStatusProvider = parserStatusProvider;
+
+            AddToCanExecuteEvaluation(SpecialEvaluateCanExecute);
         }
 
-        protected override bool EvaluateCanExecute(object parameter)
+        public override IEnumerable<Type> ApplicableNodeTypes => ApplicableNodes;
+
+        private bool SpecialEvaluateCanExecute(object parameter)
         {
-            return _state.Status == ParserState.Ready && parameter is ICodeExplorerDeclarationViewModel;
+            return _parserStatusProvider.Status == ParserState.Ready;
         }
 
         protected override void OnExecute(object parameter)
         {
-            var factory = new RenamePresenterFactory(_vbe, _view, _state);
-            var refactoring = new RenameRefactoring(_vbe, factory, _msgBox, _state, _state.ProjectsProvider, _rewritingManager);
+            if (!CanExecute(parameter) ||
+                !(parameter is CodeExplorerItemViewModel node) ||
+                node.Declaration == null)
+            {
+                return;
+            }
 
-            refactoring.Refactor(((ICodeExplorerDeclarationViewModel)parameter).Declaration);
-        }
-
-        public void Dispose()
-        {
-            _view?.Dispose();
+            try
+            {
+                _refactoring.Refactor(node.Declaration);
+            }
+            catch (RefactoringAbortedException)
+            { }
+            catch (RefactoringException exception)
+            {
+                _failureNotifier.Notify(exception);
+            }
         }
     }
 }

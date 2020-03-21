@@ -1,62 +1,27 @@
 ﻿using NUnit.Framework;
 using Rubberduck.Inspections.Concrete;
-using RubberduckTests.Mocks;
+using Rubberduck.Parsing.Inspections.Abstract;
+using Rubberduck.Parsing.VBA;
 using System.Linq;
-using System.Threading;
 
 namespace RubberduckTests.Inspections
 {
     [TestFixture]
-    public class ModuleWithoutFolderInspectionTests
+    public class ModuleWithoutFolderInspectionTests : InspectionTestsBase
     {
-        [Test]
+        [TestCase("Option Explicit", 1)] //NoFolderAnnotation
+        [TestCase("'@Folder Foo.Bar\r\nOption Explicit", 0)] //FolderAnnotation
+        [TestCase("'@PredeclaredId\r\nOption Explicit", 1)] //NonFolderAnnotation
+        [TestCase("'@IgnoreModule ModuleWithoutFolder\r\nOption Explicit", 0)] //NoFolderAnnotation_IgnoreWorks
         [Category("Inspections")]
-        public void Module_NoFolderAnnotation()
+        public void Module_VariousScenarios(string inputCode, int expectedCount)
         {
-            const string inputCode = "Option Explicit";
-
-            var vbe = MockVbeBuilder.BuildFromSingleStandardModule(inputCode, out _);
-            using (var state = MockParser.CreateAndParse(vbe.Object))
-            {
-                var inspection = new ModuleWithoutFolderInspection(state);
-                var inspectionResults = inspection.GetInspectionResults(CancellationToken.None);
-
-                Assert.AreEqual(1, inspectionResults.Count());
-            }
+            Assert.AreEqual(expectedCount, InspectionResultsForStandardModule(inputCode).Count());
         }
 
-        [Test]
-        [Category("Inspections")]
-        public void Module_FolderAnnotation()
+        protected override IInspection InspectionUnderTest(RubberduckParserState state)
         {
-            const string inputCode = @"'@Folder Foo.Bar
-Option Explicit";
-
-            var vbe = MockVbeBuilder.BuildFromSingleStandardModule(inputCode, out _);
-            using (var state = MockParser.CreateAndParse(vbe.Object))
-            {
-                var inspection = new ModuleWithoutFolderInspection(state);
-                var inspectionResults = inspection.GetInspectionResults(CancellationToken.None);
-
-                Assert.AreEqual(0, inspectionResults.Count());
-            }
-        }
-
-        [Test]
-        [Category("Inspections")]
-        public void Module_NonFolderAnnotation()
-        {
-            const string inputCode = @"'@IgnoreModule
-Option Explicit";
-
-            var vbe = MockVbeBuilder.BuildFromSingleStandardModule(inputCode, out _);
-            using (var state = MockParser.CreateAndParse(vbe.Object))
-            {
-                var inspection = new ModuleWithoutFolderInspection(state);
-                var inspectionResults = inspection.GetInspectionResults(CancellationToken.None);
-
-                Assert.AreEqual(1, inspectionResults.Count());
-            }
+            return new ModuleWithoutFolderInspection(state);
         }
     }
 }

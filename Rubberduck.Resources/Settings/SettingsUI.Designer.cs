@@ -214,6 +214,15 @@ namespace Rubberduck.Resources.Settings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Warning! No Modifier!.
+        /// </summary>
+        public static string HotKeys_Exclamation {
+            get {
+                return ResourceManager.GetString("HotKeys_Exclamation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Import.
         /// </summary>
         public static string ImportPageSettingsButton {
@@ -259,6 +268,15 @@ namespace Rubberduck.Resources.Settings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Reference Settings.
+        /// </summary>
+        public static string PageHeader_ReferenceSettings {
+            get {
+                return ResourceManager.GetString("PageHeader_ReferenceSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Todo Settings.
         /// </summary>
         public static string PageHeader_TodoSettings {
@@ -295,7 +313,7 @@ namespace Rubberduck.Resources.Settings {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Click [Ok] to close the window and apply changes, or [Cancel] to discard them..
+        ///   Looks up a localized string similar to Click [{0}] to close the window and apply changes, or [{1}] to discard them..
         /// </summary>
         public static string PageInstructions_GeneralSettings {
             get {
@@ -318,6 +336,15 @@ namespace Rubberduck.Resources.Settings {
         public static string PageInstructions_InspectionSettings {
             get {
                 return ResourceManager.GetString("PageInstructions_InspectionSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Configure settings for adding and removing references..
+        /// </summary>
+        public static string PageInstructions_ReferenceSettings {
+            get {
+                return ResourceManager.GetString("PageInstructions_ReferenceSettings", resourceCulture);
             }
         }
         

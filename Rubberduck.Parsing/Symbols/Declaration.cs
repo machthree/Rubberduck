@@ -37,7 +37,7 @@ namespace Rubberduck.Parsing.Symbols
             bool isArray,
             VBAParser.AsTypeClauseContext asTypeContext,
             bool isUserDefined = true,
-            IEnumerable<IAnnotation> annotations = null,
+            IEnumerable<IParseTreeAnnotation> annotations = null,
             Attributes attributes = null,
             bool undeclared = false)
             : this(
@@ -76,7 +76,7 @@ namespace Rubberduck.Parsing.Symbols
             bool isArray,
             VBAParser.AsTypeClauseContext asTypeContext,
             bool isUserDefined = true,
-            IEnumerable<IAnnotation> annotations = null,
+            IEnumerable<IParseTreeAnnotation> annotations = null,
             Attributes attributes = null)
             : this(
                   qualifiedName,
@@ -114,7 +114,7 @@ namespace Rubberduck.Parsing.Symbols
             bool isArray,
             VBAParser.AsTypeClauseContext asTypeContext,
             bool isUserDefined = true,
-            IEnumerable<IAnnotation> annotations = null,
+            IEnumerable<IParseTreeAnnotation> annotations = null,
             Attributes attributes = null)
         {
             QualifiedName = qualifiedName;            
@@ -132,7 +132,7 @@ namespace Rubberduck.Parsing.Symbols
             AttributesPassContext = attributesPassContext;
             IsUserDefined = isUserDefined;
             _annotations = annotations;
-            _attributes = attributes ?? new Attributes();
+            Attributes = attributes ?? new Attributes();
 
             ProjectId = QualifiedName.QualifiedModuleName.ProjectId;
             var projectDeclaration = GetProjectParent(parentDeclaration);
@@ -145,7 +145,6 @@ namespace Rubberduck.Parsing.Symbols
                 ProjectName = IdentifierName;
             }
 
-            CustomFolder = FolderFromAnnotations();
             IsArray = isArray;
             AsTypeContext = asTypeContext;
             TypeHint = typeHint;
@@ -230,32 +229,13 @@ namespace Rubberduck.Parsing.Symbols
                 null,
                 new Attributes()) { }
 
-        private string FolderFromAnnotations()
-            {
-                var @namespace = Annotations.FirstOrDefault(annotation => annotation.AnnotationType == AnnotationType.Folder);
-                string result;
-                if (@namespace == null)
-                {
-                    result = string.IsNullOrEmpty(QualifiedName.QualifiedModuleName.ProjectName)
-                        ? ProjectId
-                        : QualifiedName.QualifiedModuleName.ProjectName;
-                }
-                else
-                {
-                    var value = ((FolderAnnotation)@namespace).FolderName;
-                    result = value;
-                }
-                return result;
-            }
-
-
         public static Declaration GetModuleParent(Declaration declaration)
         {
             if (declaration == null)
             {
                 return null;
             }
-            if (declaration.DeclarationType == DeclarationType.ClassModule || declaration.DeclarationType == DeclarationType.ProceduralModule)
+            if (declaration.DeclarationType.HasFlag(DeclarationType.ClassModule) || declaration.DeclarationType == DeclarationType.ProceduralModule)
             {
                 return declaration;
             }
@@ -295,11 +275,10 @@ namespace Rubberduck.Parsing.Symbols
         private ConcurrentDictionary<IdentifierReference, int> _references = new ConcurrentDictionary<IdentifierReference, int>();
         public IEnumerable<IdentifierReference> References => _references.Keys;
 
-        protected IEnumerable<IAnnotation> _annotations;
-        public IEnumerable<IAnnotation> Annotations => _annotations ?? new List<IAnnotation>();
+        protected IEnumerable<IParseTreeAnnotation> _annotations;
+        public IEnumerable<IParseTreeAnnotation> Annotations => _annotations ?? new List<IParseTreeAnnotation>();
 
-        private readonly Attributes _attributes;
-        public Attributes Attributes => _attributes;
+        public Attributes Attributes { get; }
 
         /// <summary>
         /// Gets an attribute value that contains the docstring for a member.
@@ -310,14 +289,14 @@ namespace Rubberduck.Parsing.Symbols
             {
                 string literalDescription;
 
-                var memberAttribute = _attributes.SingleOrDefault(a => a.Name == $"{IdentifierName}.VB_Description");
+                var memberAttribute = Attributes.SingleOrDefault(a => a.Name == $"{IdentifierName}.VB_Description");
                 if (memberAttribute != null)
                 {
                     literalDescription = memberAttribute.Values.SingleOrDefault() ?? string.Empty;
                     return CorrectlyFormatedDescription(literalDescription);
                 }
 
-                var moduleAttribute = _attributes.SingleOrDefault(a => a.Name == "VB_Description");
+                var moduleAttribute = Attributes.SingleOrDefault(a => a.Name == "VB_Description");
                 if (moduleAttribute != null)
                 {
                     literalDescription = moduleAttribute.Values.SingleOrDefault() ?? string.Empty;
@@ -347,15 +326,29 @@ namespace Rubberduck.Parsing.Symbols
         /// Gets an attribute value indicating whether a member is an enumerator provider.
         /// Types with such a member support For Each iteration.
         /// </summary>
-        public bool IsEnumeratorMember => _attributes.Any(a => a.Name.EndsWith("VB_UserMemId") && a.Values.Contains("-4"));
+        public bool IsEnumeratorMember => Attributes.Any(a => a.Name.EndsWith("VB_UserMemId") && a.Values.Contains("-4"));
 
-        public virtual bool IsObject =>
-            AsTypeName == Tokens.Object || (
-                AsTypeDeclaration?.DeclarationType.HasFlag(DeclarationType.ClassModule) ?? 
-                    !AsTypeIsBaseType
-                    && !IsArray
-                    && !DeclarationType.HasFlag(DeclarationType.UserDefinedType)
-                    && !DeclarationType.HasFlag(DeclarationType.Enumeration));
+        public virtual bool IsObject => !IsArray && IsObjectOrObjectArray;
+
+        public virtual bool IsObjectArray => IsArray && IsObjectOrObjectArray;
+
+        private bool IsObjectOrObjectArray
+        {
+            get
+            {
+                if (AsTypeName == Tokens.Object 
+                    || (AsTypeDeclaration?.DeclarationType.HasFlag(DeclarationType.ClassModule) ?? false))
+                {
+                    return true;
+                }
+
+                var isIntrinsic = AsTypeIsBaseType
+                                  || (AsTypeDeclaration?.DeclarationType.HasFlag(DeclarationType.UserDefinedType) ?? false)
+                                  || (AsTypeDeclaration?.DeclarationType.HasFlag(DeclarationType.Enumeration) ?? false);
+
+                return !isIntrinsic;
+            }
+        }
 
         public void AddReference(
             QualifiedModuleName module,
@@ -365,10 +358,16 @@ namespace Rubberduck.Parsing.Symbols
             string identifier,
             Declaration callee,
             Selection selection,
-            IEnumerable<IAnnotation> annotations,
+            IEnumerable<IParseTreeAnnotation> annotations,
             bool isAssignmentTarget = false,
             bool hasExplicitLetStatement = false,
-            bool isSetAssigned = false
+            bool isSetAssigned = false,
+            bool isIndexedDefaultMemberAccess = false,
+            bool isNonIndexedDefaultMemberAccess = false,
+            int defaultMemberRecursionDepth = 0,
+            bool isArrayAccess = false,
+            bool isProcedureCoercion = false,
+            bool isInnerRecursiveDefaultMemberAccess = false
             )
         {
             var oldReference = _references.FirstOrDefault(r =>
@@ -395,7 +394,13 @@ namespace Rubberduck.Parsing.Symbols
                 isAssignmentTarget,
                 hasExplicitLetStatement,
                 annotations,
-                isSetAssigned);
+                isSetAssigned,
+                isIndexedDefaultMemberAccess,
+                isNonIndexedDefaultMemberAccess,
+                defaultMemberRecursionDepth,
+                isArrayAccess,
+                isProcedureCoercion,
+                isInnerRecursiveDefaultMemberAccess);
             _references.AddOrUpdate(newReference, 1, (key, value) => 1);
         }
 
@@ -457,7 +462,7 @@ namespace Rubberduck.Parsing.Symbols
         public string IdentifierName { get; }
 
         /// <summary>
-        /// Gets the name of the declared type.
+        /// Gets the name of the declared type as specified in code.
         /// </summary>
         /// <remarks>
         /// This value is <c>null</c> if not applicable, 
@@ -474,6 +479,32 @@ namespace Rubberduck.Parsing.Symbols
                     return AsTypeName;
                 }
                 return AsTypeName.Replace("(", "").Replace(")", "").Trim();
+            }
+        }
+
+        /// <summary>
+        /// Gets the fully qualified name of the declared type.
+        /// </summary>
+        /// <remarks>
+        /// This value is <c>null</c> if not applicable, 
+        /// and <c>Variant</c> if applicable but unspecified.
+        /// </remarks>
+        public string FullAsTypeName
+        {
+            get
+            {
+                if (AsTypeDeclaration == null)
+                {
+                    return AsTypeName;
+                }
+
+                if (AsTypeDeclaration.DeclarationType.HasFlag(DeclarationType.ClassModule))
+                {
+                    return AsTypeDeclaration.QualifiedModuleName.ToString();
+                }
+
+                //Enums and UDTs have to be qualified by the module they are contained in.
+                return AsTypeDeclaration.QualifiedName.ToString();
             }
         }
 
@@ -555,6 +586,7 @@ namespace Rubberduck.Parsing.Symbols
                     case DeclarationType.Project:
                         return "VBE";
                     case DeclarationType.ClassModule:
+                    case DeclarationType.Document:
                     case DeclarationType.ProceduralModule:
                         return QualifiedModuleName.ToString();
                     case DeclarationType.Procedure:
@@ -579,7 +611,7 @@ namespace Rubberduck.Parsing.Symbols
         /// </summary>
         public bool IsUndeclared { get; }
 
-        public string CustomFolder { get; }
+        public virtual string CustomFolder => ParentDeclaration?.CustomFolder ?? ProjectName;
 
         public bool Equals(Declaration other)
         {
@@ -612,12 +644,12 @@ namespace Rubberduck.Parsing.Symbols
             }
         }
 
-        public void ClearReferences()
+        public virtual void ClearReferences()
         {
             _references = new ConcurrentDictionary<IdentifierReference, int>();
         }
 
-        public void RemoveReferencesFrom(IReadOnlyCollection<QualifiedModuleName> modulesByWhichToRemoveReferences)
+        public virtual void RemoveReferencesFrom(IReadOnlyCollection<QualifiedModuleName> modulesByWhichToRemoveReferences)
         {
             _references = new ConcurrentDictionary<IdentifierReference, int>(_references.Where(reference => !modulesByWhichToRemoveReferences.Contains(reference.Key.QualifiedModuleName)));
         }

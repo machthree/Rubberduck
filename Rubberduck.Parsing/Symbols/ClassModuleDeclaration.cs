@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace Rubberduck.Parsing.Symbols
 {
-    public sealed class ClassModuleDeclaration : ModuleDeclaration
+    public class ClassModuleDeclaration : ModuleDeclaration
     {
         private readonly List<string> _supertypeNames;
         private readonly HashSet<Declaration> _supertypes;
@@ -24,16 +24,17 @@ namespace Rubberduck.Parsing.Symbols
                   Declaration projectDeclaration,
                   string name,
                   bool isUserDefined,
-                  IEnumerable<IAnnotation> annotations,
+                  IEnumerable<IParseTreeAnnotation> annotations,
                   Attributes attributes,
                   bool isWithEvents = false,
                   bool hasDefaultInstanceVariable = false,
-                  bool isControl = false)
+                  bool isControl = false,
+                  bool isDocument = false)
             : base(
                   qualifiedName,
                   projectDeclaration,
                   name,
-                  DeclarationType.ClassModule,
+                  isDocument ? DeclarationType.Document : DeclarationType.ClassModule,
                   isUserDefined,
                   annotations,
                   attributes,
@@ -61,7 +62,7 @@ namespace Rubberduck.Parsing.Symbols
                     parent,
                     coClass.Name,
                     false,
-                    new List<IAnnotation>(),
+                    new List<IParseTreeAnnotation>(),
                     attributes,
                     coClass.EventInterfaces.Any(),
                     coClass.IsAppObject,
@@ -85,7 +86,7 @@ namespace Rubberduck.Parsing.Symbols
                 parent,
                 @interface.Name,
                 false,
-                new List<IAnnotation>(),
+                new List<IParseTreeAnnotation>(),
                 attributes)
         { }
 

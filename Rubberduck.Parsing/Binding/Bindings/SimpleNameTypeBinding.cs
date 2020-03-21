@@ -67,7 +67,7 @@ namespace Rubberduck.Parsing.Binding
             {
                 return boundExpression;
             }
-            return new ResolutionFailedExpression();
+            return new ResolutionFailedExpression(_expression);
         }
 
         private IBoundExpression ResolvePreferProject(string name)
@@ -154,7 +154,7 @@ namespace Rubberduck.Parsing.Binding
             {
                 return new SimpleNameExpression(proceduralModuleEnclosingProject, ExpressionClassification.ProceduralModule, _expression);
             }
-            if (_module.DeclarationType == DeclarationType.ClassModule && _declarationFinder.IsMatch(_module.IdentifierName, name))
+            if (_module is ClassModuleDeclaration && _declarationFinder.IsMatch(_module.IdentifierName, name))
             {
                 return new SimpleNameExpression(_module, ExpressionClassification.Type, _expression);
             }

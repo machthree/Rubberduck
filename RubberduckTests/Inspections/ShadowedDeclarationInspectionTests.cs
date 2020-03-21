@@ -6,13 +6,14 @@ using System.Threading;
 using NUnit.Framework;
 using Rubberduck.Inspections.Concrete;
 using Rubberduck.Parsing.Inspections.Abstract;
+using Rubberduck.Parsing.VBA;
 using Rubberduck.VBEditor.SafeComWrappers;
 using RubberduckTests.Mocks;
 
 namespace RubberduckTests.Inspections
 {
     [TestFixture]
-    public class ShadowedDeclarationInspectionTests
+    public class ShadowedDeclarationInspectionTests : InspectionTestsBase
     {
         private const string ProjectName = "SameNameProject";
         private const string ProceduralModuleName = "SameNameProceduralModule";
@@ -3319,7 +3320,7 @@ End Enum");
         [Test]
         [Category("Inspections")]
         public void
-            ShadowedDeclaration_ReturnsCorrectResult_DeclarationsWithSameNameAsEnumerationMemberOfPublicEnumerationInReferencedProject()
+        ShadowedDeclaration_ReturnsCorrectResult_DeclarationsWithSameNameAsEnumerationMemberOfPublicEnumerationInReferencedProject()
         {
             var expectedResultCountsByDeclarationIdentifierName = new Dictionary<string, int>
             {
@@ -5111,6 +5112,157 @@ Public {sameName} As String";
 
         [Test]
         [Category("Inspections")]
+        [TestCase("", "As Object", "")]    //Variable
+        [TestCase("Function", "As Object", "End Function")]
+        [TestCase("Sub", "", "End Sub")]
+        [TestCase("Property Get", "As Object", "End Property")]
+        [TestCase("Property Let", "", "End Property")]
+        [TestCase("Property Set", "", "End Property")]
+        public void ShadowedDeclaration_DoesNotReturnResult_AssertBecauseOfDebugAssert(string memberType, string asTypeClause, string endTag)
+        {
+            var code =
+                $@"Public {memberType} Assert() {asTypeClause} 
+{endTag}";
+
+            var vbe = new MockVbeBuilder()
+                .ProjectBuilder("TestProject", ProjectProtection.Unprotected)
+                .AddComponent("TestClass", ComponentType.ClassModule, code)
+                .AddReference("VBA", MockVbeBuilder.LibraryPathVBA, 4, 2, true)
+                .AddProjectToVbeBuilder()
+                .Build();
+
+            IEnumerable<IInspectionResult> inspectionResults;
+            using (var state = MockParser.CreateAndParse(vbe.Object))
+            {
+                var inspection = new ShadowedDeclarationInspection(state);
+                inspectionResults = inspection.GetInspectionResults(CancellationToken.None);
+            }
+
+            Assert.IsFalse(inspectionResults.Any());
+        }
+
+        [Test]
+        [Category("Inspections")]
+        public void ShadowedDeclaration_DoesNotReturnResult_LocalAssertVariableAssertBecauseOfDebugAssert()
+        {
+            var code =
+                @"Public Sub Foo()
+    Dim Assert As Long
+End Sub";
+
+            var vbe = new MockVbeBuilder()
+                .ProjectBuilder("TestProject", ProjectProtection.Unprotected)
+                .AddComponent("TestClass", ComponentType.ClassModule, code)
+                .AddReference("VBA", MockVbeBuilder.LibraryPathVBA, 4, 2, true)
+                .AddProjectToVbeBuilder()
+                .Build();
+
+            IEnumerable<IInspectionResult> inspectionResults;
+            using (var state = MockParser.CreateAndParse(vbe.Object))
+            {
+                var inspection = new ShadowedDeclarationInspection(state);
+                inspectionResults = inspection.GetInspectionResults(CancellationToken.None);
+            }
+
+            Assert.IsFalse(inspectionResults.Any());
+        }
+
+        [Test]
+        [Category("Inspections")]
+        public void ShadowedDeclaration_DoesNotReturnResult_AssertParameterAssertBecauseOfDebugAssert()
+        {
+            var code =
+                @"Public Sub Foo(Assert As Boolean)
+End Sub";
+
+            var vbe = new MockVbeBuilder()
+                .ProjectBuilder("TestProject", ProjectProtection.Unprotected)
+                .AddComponent("TestClass", ComponentType.ClassModule, code)
+                .AddReference("VBA", MockVbeBuilder.LibraryPathVBA, 4, 2, true)
+                .AddProjectToVbeBuilder()
+                .Build();
+
+            IEnumerable<IInspectionResult> inspectionResults;
+            using (var state = MockParser.CreateAndParse(vbe.Object))
+            {
+                var inspection = new ShadowedDeclarationInspection(state);
+                inspectionResults = inspection.GetInspectionResults(CancellationToken.None);
+            }
+
+            Assert.IsFalse(inspectionResults.Any());
+        }
+
+        [Test]
+        [Category("Inspections")]
+        [TestCase("", "As Object", "")]    //Variable
+        [TestCase("Function", "As Object", "End Function")]
+        [TestCase("Sub", "", "End Sub")]
+        [TestCase("Property Get", "As Object", "End Property")]
+        [TestCase("Property Let", "", "End Property")]
+        [TestCase("Property Set", "", "End Property")]
+        public void ShadowedDeclaration_ReturnResult_LocalAssertVariableAssertBecauseOfNonDebugAssert(string memberType, string asTypeClause, string endTag)
+        {
+            var code =
+                $@"Public {memberType} Assert() {asTypeClause} 
+{endTag}
+
+Public Sub Foo()
+    Dim Assert As Long
+End Sub";
+
+            var vbe = new MockVbeBuilder()
+                .ProjectBuilder("TestProject", ProjectProtection.Unprotected)
+                .AddComponent("TestClass", ComponentType.ClassModule, code)
+                .AddReference("VBA", MockVbeBuilder.LibraryPathVBA, 4, 2, true)
+                .AddProjectToVbeBuilder()
+                .Build();
+
+            IEnumerable<IInspectionResult> inspectionResults;
+            using (var state = MockParser.CreateAndParse(vbe.Object))
+            {
+                var inspection = new ShadowedDeclarationInspection(state);
+                inspectionResults = inspection.GetInspectionResults(CancellationToken.None);
+            }
+
+            Assert.AreEqual(1,inspectionResults.Count());
+        }
+
+        [Test]
+        [Category("Inspections")]
+        [TestCase("", "As Object", "")]    //Variable
+        [TestCase("Function", "As Object", "End Function")]
+        [TestCase("Sub", "", "End Sub")]
+        [TestCase("Property Get", "As Object", "End Property")]
+        [TestCase("Property Let", "", "End Property")]
+        [TestCase("Property Set", "", "End Property")]
+        public void ShadowedDeclaration_ReturnResult_AssertParameterAssertBecauseOfNonDebugAssert(string memberType, string asTypeClause, string endTag)
+        {
+            var code =
+                $@"Public {memberType} Assert() {asTypeClause} 
+{endTag}
+
+Public Sub Foo(Assert As Boolean)
+End Sub";
+
+            var vbe = new MockVbeBuilder()
+                .ProjectBuilder("TestProject", ProjectProtection.Unprotected)
+                .AddComponent("TestClass", ComponentType.ClassModule, code)
+                .AddReference("VBA", MockVbeBuilder.LibraryPathVBA, 4, 2, true)
+                .AddProjectToVbeBuilder()
+                .Build();
+
+            IEnumerable<IInspectionResult> inspectionResults;
+            using (var state = MockParser.CreateAndParse(vbe.Object))
+            {
+                var inspection = new ShadowedDeclarationInspection(state);
+                inspectionResults = inspection.GetInspectionResults(CancellationToken.None);
+            }
+
+            Assert.AreEqual(1, inspectionResults.Count());
+        }
+
+        [Test]
+        [Category("Inspections")]
         public void ShadowedDeclaration_Ignored_DoesNotReturnResult()
         {
             string ignoredDeclarationCode =
@@ -5178,9 +5330,9 @@ End Sub";
                 .ToDictionary(group => group.Key, group => group.Count());
         }
 
-        private MockProjectBuilder CreateUserProject(MockVbeBuilder builder, string projectName = ProjectName)
+        private MockProjectBuilder CreateUserProject(MockVbeBuilder builder, string projectName = ProjectName, string projectPath = "")
         {
-            return builder.ProjectBuilder(projectName, ProjectProtection.Unprotected)
+            return builder.ProjectBuilder(projectName, projectPath, ProjectProtection.Unprotected)
                 .AddComponent(ProceduralModuleName, ComponentType.StandardModule, _moduleCode)
                 .AddComponent(ClassModuleName, ComponentType.ClassModule, $"Public Event {EventName}()")
                 .AddComponent(UserFormName, ComponentType.UserForm, "")
@@ -5190,15 +5342,19 @@ End Sub";
         private MockVbeBuilder TestVbeWithUserProjectAndReferencedProjectWithComponentsOfOneType(string referencedProjectName, IEnumerable<string> testBaseNames, ComponentType referencedComponentsComponentType, Func<string, string> componentNameSelector, Func<string, string> componentCodeSelector, string userProjectName = ProjectName)
         {
             var builder = new MockVbeBuilder();
-            var referencedProjectBuilder = builder.ProjectBuilder(referencedProjectName, ProjectProtection.Unprotected);
+            var project = string.IsNullOrEmpty(referencedProjectName) ? "Irrelevant" : referencedProjectName;
+            var path = $@"C:\{project}.xlsm";
+            var referencedProjectBuilder = builder.ProjectBuilder(referencedProjectName, path, ProjectProtection.Unprotected);
 
             foreach (var baseName in testBaseNames)
             {
                 referencedProjectBuilder.AddComponent(componentNameSelector(baseName), referencedComponentsComponentType, componentCodeSelector(baseName));
             }
+
             var referencedProject = referencedProjectBuilder.Build();
             builder.AddProject(referencedProject);
-            var userProject = CreateUserProject(builder, userProjectName).AddReference(referencedProjectName, string.Empty, 0, 0).Build();
+
+            var userProject = CreateUserProject(builder, userProjectName).AddReference(project, path, 0, 0).Build();
             builder.AddProject(userProject);
 
             return builder;
@@ -5228,12 +5384,16 @@ End Sub";
             string referencedComponentCode,
             string userProjectName = ProjectName)
         {
+            var project = string.IsNullOrEmpty(referencedProjectName) ? "Irrelevant" : referencedProjectName;
+            var path = $@"C:\{project}.xlsm";
+
             var builder = new MockVbeBuilder();
-            var referencedProjectBuilder = builder.ProjectBuilder(referencedProjectName, ProjectProtection.Unprotected);
+            var referencedProjectBuilder = builder.ProjectBuilder(referencedProjectName, path, ProjectProtection.Unprotected);
             referencedProjectBuilder.AddComponent(referencedComponentName, referencedComponentComponentType, referencedComponentCode);
             var referencedProject = referencedProjectBuilder.Build();
             builder.AddProject(referencedProject);
-            var userProject = CreateUserProject(builder, userProjectName).AddReference(referencedProjectName, string.Empty, 0, 0).Build();
+
+            var userProject = CreateUserProject(builder, userProjectName).AddReference(project, path, 0, 0).Build();
             builder.AddProject(userProject);
 
             return builder;
@@ -5321,6 +5481,11 @@ End Sub";
             }
 
             return codeBuilder.ToString();
+        }
+
+        protected override IInspection InspectionUnderTest(RubberduckParserState state)
+        {
+            return new ShadowedDeclarationInspection(state);
         }
     }
 }

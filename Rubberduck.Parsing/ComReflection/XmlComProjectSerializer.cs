@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Xml;
@@ -11,7 +13,7 @@ namespace Rubberduck.Parsing.ComReflection
     {
         public readonly string DefaultSerializationPath;
 
-        public XmlComProjectSerializer(IPersistancePathProvider pathProvider)
+        public XmlComProjectSerializer(IPersistencePathProvider pathProvider)
         {
             DefaultSerializationPath = pathProvider.DataFolderPath("Declarations");
         }
@@ -21,16 +23,28 @@ namespace Rubberduck.Parsing.ComReflection
             CheckCharacters = false
         };
 
-        private static readonly XmlWriterSettings WriterSettings = new XmlWriterSettings
+        private static readonly XmlWriterSettings WriterSettings = CreateWriterSettings();
+        
+        private static XmlWriterSettings CreateWriterSettings()
         {
-            NamespaceHandling = NamespaceHandling.OmitDuplicates,
-            CheckCharacters = false,
-#if PRETTY_XML
-            Indent = true,
-            IndentChars = ("\t"),
-            NewLineChars = Environment.NewLine
-#endif
-        };
+            var settings = new XmlWriterSettings
+            {
+                NamespaceHandling = NamespaceHandling.OmitDuplicates,
+                CheckCharacters = false
+            };
+
+            PrettifyWriter(ref settings);
+
+            return settings;
+        }
+
+        [Conditional("PRETTY_XML")]
+        private static void PrettifyWriter(ref XmlWriterSettings settings)
+        {
+            settings.Indent = true;
+            settings.IndentChars = ("\t");
+            settings.NewLineChars = Environment.NewLine;
+        }
 
         public XmlComProjectSerializer(string path = null)
         {
@@ -51,6 +65,7 @@ namespace Rubberduck.Parsing.ComReflection
             return File.Exists(testFile);
         }
 
+        [SuppressMessage("Microsoft.Usage", "CA2202:Do not dispose objects multiple times")] //This is fine. XmlWriter disposes the FileStream, but calling twice is a NOP.
         public void SerializeProject(ComProject project)
         {
             var filepath = Path.Combine(Target, FileName(project));

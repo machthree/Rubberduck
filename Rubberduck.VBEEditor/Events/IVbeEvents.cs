@@ -1,8 +1,9 @@
 ﻿using System;
+using Rubberduck.VBEditor.SafeComWrappers;
 
 namespace Rubberduck.VBEditor.Events
 {
-    public interface IVBEEvents
+    public interface IVbeEvents
     {
         event EventHandler<ProjectEventArgs> ProjectAdded;
         event EventHandler<ProjectEventArgs> ProjectRemoved;
@@ -14,6 +15,9 @@ namespace Rubberduck.VBEditor.Events
         event EventHandler<ComponentEventArgs> ComponentSelected;
         event EventHandler<ComponentEventArgs> ComponentActivated;
         event EventHandler<ComponentEventArgs> ComponentReloaded;
+        event EventHandler<ReferenceEventArgs> ProjectReferenceAdded;
+        event EventHandler<ReferenceEventArgs> ProjectReferenceRemoved;
         event EventHandler EventsTerminated;
+        bool Terminated { get; }
     }
 }

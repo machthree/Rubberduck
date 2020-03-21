@@ -1,54 +1,52 @@
 ﻿using System.Linq;
-using Rubberduck.Interaction;
-using Rubberduck.Parsing.Rewriter;
 using Rubberduck.Parsing.Symbols;
 using Rubberduck.Parsing.VBA;
 using Rubberduck.Refactorings.MoveCloserToUsage;
-using Rubberduck.VBEditor.SafeComWrappers.Abstract;
+using Rubberduck.UI.Command.Refactorings.Notifiers;
+using Rubberduck.VBEditor.Utility;
 
 namespace Rubberduck.UI.Command.Refactorings
 {
-    public class RefactorMoveCloserToUsageCommand : RefactorCommandBase
+    public class RefactorMoveCloserToUsageCommand : RefactorCodePaneCommandBase
     {
         private readonly RubberduckParserState _state;
-        private readonly IRewritingManager _rewritingManager;
-        private readonly IMessageBox _msgbox;
+        private readonly ISelectedDeclarationProvider _selectedDeclarationProvider;
 
-        public RefactorMoveCloserToUsageCommand(IVBE vbe, RubberduckParserState state, IMessageBox msgbox, IRewritingManager rewritingManager)
-            :base(vbe)
+        public RefactorMoveCloserToUsageCommand(
+            MoveCloserToUsageRefactoring refactoring, 
+            MoveCloserToUsageFailedNotifier moveCloserToUsageFailedNotifier, 
+            RubberduckParserState state,
+            ISelectionProvider selectionProvider,
+            ISelectedDeclarationProvider selectedDeclarationProvider)
+            :base(refactoring, moveCloserToUsageFailedNotifier, selectionProvider, state)
         {
             _state = state;
-            _rewritingManager = rewritingManager;
-            _msgbox = msgbox;
+            _selectedDeclarationProvider = selectedDeclarationProvider;
+
+            AddToCanExecuteEvaluation(SpecializedEvaluateCanExecute);
         }
 
-        protected override bool EvaluateCanExecute(object parameter)
+        private bool SpecializedEvaluateCanExecute(object parameter)
         {
-            using (var activePane = Vbe.ActiveCodePane)
-            {
-                if (activePane == null || activePane .IsWrappingNullReference || _state.Status != ParserState.Ready)
-                {
-                    return false;
-                }
+            var target = GetTarget();
 
-                var target = _state.FindSelectedDeclaration(activePane);
-                return target != null
-                       && !_state.IsNewOrModified(target.QualifiedModuleName)
-                       && (target.DeclarationType == DeclarationType.Variable ||
-                           target.DeclarationType == DeclarationType.Constant)
-                       && target.References.Any();
-            }
+            return target != null
+                   && !_state.IsNewOrModified(target.QualifiedModuleName)
+                   && target.References.Any();
         }
 
-        protected override void OnExecute(object parameter)
+        private Declaration GetTarget()
         {
-            var selection = Vbe.GetActiveSelection();
-
-            if (selection.HasValue)
+            var selectedDeclaration = _selectedDeclarationProvider.SelectedDeclaration();
+            if (selectedDeclaration == null
+                || (selectedDeclaration.DeclarationType != DeclarationType.Variable
+                    && selectedDeclaration.DeclarationType != DeclarationType.Constant)
+                || !selectedDeclaration.References.Any())
             {
-                var refactoring = new MoveCloserToUsageRefactoring(Vbe, _state, _msgbox, _rewritingManager);
-                refactoring.Refactor(selection.Value);
+                return null;
             }
+
+            return selectedDeclaration;
         }
     }
 }

@@ -172,7 +172,10 @@
     <value>Name:</value>
   </data>
   <data name="OK" xml:space="preserve">
-    <value>Ok</value>
+    <value>OK</value>
+  </data>
+  <data name="SaveAndClose" xml:space="preserve">
+    <value>Save &amp; Close</value>
   </data>
   <data name="RenameDialog_Caption" xml:space="preserve">
     <value>Rubberduck - Rename</value>
@@ -589,11 +592,11 @@ Do you want to proceed with this rename?</value>
   <data name="MoveCloserToUsage_Caption" xml:space="preserve">
     <value>Rubberduck - Move Closer To Usage</value>
   </data>
-  <data name="MoveCloserToUsage_TargetHasNoReferences" xml:space="preserve">
+  <data name="MoveCloserToUsageFailure_TargetHasNoReferences" xml:space="preserve">
     <value>'{0}' is not used anywhere.</value>
     <comment>{0}: Variable Name</comment>
   </data>
-  <data name="MoveCloserToUsage_TargetIsUsedInMultipleMethods" xml:space="preserve">
+  <data name="MoveCloserToUsageFailure_TargetIsUsedInMultipleMethods" xml:space="preserve">
     <value>'{0}' has references in multiple methods.</value>
     <comment>{0}: Variable Name</comment>
   </data>
@@ -613,7 +616,7 @@ Do you want to proceed with this rename?</value>
   <data name="ImplementInterface_InvalidSelectionMessage" xml:space="preserve">
     <value>The current selection is not valid.</value>
   </data>
-  <data name="MoveCloserToUsage_InvalidSelection" xml:space="preserve">
+  <data name="MoveCloserToUsageFailure_InvalidSelection" xml:space="preserve">
     <value>Invalid Selection.</value>
   </data>
   <data name="ExtractInterface_Caption" xml:space="preserve">
@@ -1043,31 +1046,19 @@ Would you like to import them to Rubberduck?</value>
     <value>Indented Code Sample</value>
   </data>
   <data name="VersionCheck_NewVersionAvailable" xml:space="preserve">
-    <value>Rubberduck version {0} is now available! Would you like to review the release notes now?</value>
+    <value>You are currently running Rubberduck version {0}.
+Good news! Version {1} ({2}) is now available.
+
+To review the change log and manually upgrade Rubberduck, click 'Yes'.
+
+This dialog is showing because version checks are enabled. You can turn off this feature in Rubberduck &gt; Settings.</value>
+    <comment>{0}=local; {1}=latest; {2}=buildtype (release/pre-release)</comment>
   </data>
   <data name="GeneralSettings_CheckVersion" xml:space="preserve">
     <value>Check if a newer version is available at startup</value>
   </data>
-  <data name="AssignedByValDialog_DoesNotStartWithLetter" xml:space="preserve">
-    <value>Variable names must begin with a letter.</value>
-  </data>
-  <data name="AssignedByValDialog_InvalidCharacters" xml:space="preserve">
-    <value>Variable names cannot contain special characters other than underscores.</value>
-  </data>
-  <data name="AssignedByValDialog_IsByValIdentifierFormat" xml:space="preserve">
-    <value>The local variable cannot be the same as the '{0}' parameter it replaces</value>
-    <comment>{0} = proposed variable name.</comment>
-  </data>
   <data name="AssignedByValDialog_NewNameAlreadyUsedFormat" xml:space="preserve">
     <value>'{0}' is already accessible to this scope.</value>
-    <comment>{0} = proposed variable name.</comment>
-  </data>
-  <data name="AssignedByValDialog_QuestionableEntryFormat" xml:space="preserve">
-    <value>The identifier '{0}' will trigger a "Use meaningful name" inspection result. Consider choosing a different name.</value>
-    <comment>{0} = proposed variable name.</comment>
-  </data>
-  <data name="AssignedByValDialog_ReservedKeywordFormat" xml:space="preserve">
-    <value>'{0}' is a reserved keyword.</value>
     <comment>{0} = proposed variable name.</comment>
   </data>
   <data name="ConfirmRemoveAssignmentWithUnusedDeclaration" xml:space="preserve">
@@ -1075,12 +1066,6 @@ Would you like to import them to Rubberduck?</value>
   </data>
   <data name="Preview" xml:space="preserve">
     <value>Preview</value>
-  </data>
-  <data name="RefactorRename_TargetNotDefinedError" xml:space="preserve">
-    <value>Unable to detect selected rename target</value>
-  </data>
-  <data name="RefactorRename_TargetNotUserDefinedError" xml:space="preserve">
-    <value>Identifier {0} cannot be renamed.</value>
   </data>
   <data name="RenameDialog_DefaultRenameError" xml:space="preserve">
     <value>Could not rename {0}.</value>
@@ -1185,7 +1170,7 @@ Would you like to import them to Rubberduck?</value>
     <value>Unexpected Error</value>
   </data>
   <data name="Command_Reparse_CompileOnDemandEnabled" xml:space="preserve">
-    <value>The VBEsetting "Compile On Demand" is currently enabled. This is not recommended as this may hide compilation errors and cause problems with parsing. Do you want to parse anyway?</value>
+    <value>The VBE setting "Compile On Demand" is currently enabled. This is not recommended as this may hide compilation errors and cause problems with parsing. Do you want to parse anyway?</value>
   </data>
   <data name="Command_Reparse_CompileOnDemandEnabled_Caption" xml:space="preserve">
     <value>Compile On Demand Setting</value>
@@ -1206,40 +1191,40 @@ NOTE: Restart is required for the setting to take effect.</value>
   </data>
   <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="AddClass" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\custom\png\addclass.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Custom\PNG\AddClass.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="AddForm" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\custom\png\addform.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Custom\PNG\AddForm.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="AddModule" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\custom\png\addmodule.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Custom\PNG\AddModule.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="arrow_circle_double" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\fugue\arrow-circle-double.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Fugue\arrow-circle-double.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="light_bulb_code" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\fugue\light-bulb-code.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Fugue\light-bulb-code.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="ProjectForm" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\custom\png\projectform.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Custom\PNG\ProjectForm.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="Splash" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>splash.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Splash.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="cross_circle" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\fugue\cross-circle.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Fugue\cross-circle.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="exclamation" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\fugue\exclamation.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Fugue\exclamation.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="minus_white" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\fugue\minus-white.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Fugue\minus-white.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="question_white" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\fugue\question-white.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Fugue\question-white.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="tick_circle" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>icons\fugue\tick-circle.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+    <value>Icons\Fugue\tick-circle.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
   <data name="Add" xml:space="preserve">
     <value>Add</value>
@@ -1286,6 +1271,94 @@ NOTE: Restart is required for the setting to take effect.</value>
   <data name="IndenterSettings_EmptyLineHeading" xml:space="preserve">
     <value>Empty line handling:</value>
   </data>
+  <data name="References" xml:space="preserve">
+    <value>References</value>
+  </data>
+  <data name="padlock" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\lock.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="BrokenReference" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Custom\PNG\BrokenReference.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="LockedReference" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Custom\PNG\LockedReference.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="ApplyButtonText" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="clock_select" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\clock-select.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="clock_select_pinned" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\clock-select-pinned.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="exclamation_pinned" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\exclamation-pinned.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="lock_pinned" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\lock-pinned.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="pinned" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\pinned.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="plus_circle" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\plus-circle.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="plus_circle_pinned" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\plus-circle-pinned.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="tick_circle_pinned" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\tick-circle-pinned.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="References_AddFailedCaption" xml:space="preserve">
+    <value>Could not add reference</value>
+  </data>
+  <data name="References_BrowseCaption" xml:space="preserve">
+    <value>Browse for reference</value>
+  </data>
+  <data name="References_BrowseFilterActiveX" xml:space="preserve">
+    <value>ActiveX Controls (*.ocx)|*.ocx</value>
+  </data>
+  <data name="References_BrowseFilterAllFiles" xml:space="preserve">
+    <value>All files (*.*)|*.*</value>
+  </data>
+  <data name="References_BrowseFilterExcel" xml:space="preserve">
+    <value>Microsoft Excel Files ({0})|{0}</value>
+    <comment>{0} = semi-colon delimited extension list in the format of *.ext</comment>
+  </data>
+  <data name="References_BrowseFilterExecutable" xml:space="preserve">
+    <value>Executable Files (*.exe;*.dll)|*.exe;*.dll</value>
+  </data>
+  <data name="References_BrowseFilterTypes" xml:space="preserve">
+    <value>Type Libraries (*.olb;*.tlb;*.dll)|*.olb;*.tlb;*.dll</value>
+  </data>
+  <data name="References_Caption" xml:space="preserve">
+    <value>Add/Remove References...</value>
+  </data>
+  <data name="References_Locale" xml:space="preserve">
+    <value>Locale:</value>
+  </data>
+  <data name="References_Pinned" xml:space="preserve">
+    <value>Pinned</value>
+  </data>
+  <data name="References_Projects" xml:space="preserve">
+    <value>Projects</value>
+  </data>
+  <data name="References_Recent" xml:space="preserve">
+    <value>Recent</value>
+  </data>
+  <data name="References_SearchPlaceholder" xml:space="preserve">
+    <value>Search for reference...</value>
+  </data>
+  <data name="References_SubCaption" xml:space="preserve">
+    <value>Select type libraries and VB projects to add or remove.</value>
+  </data>
+  <data name="References_TypeLibs" xml:space="preserve">
+    <value>Type Libraries</value>
+  </data>
+  <data name="References_Version" xml:space="preserve">
+    <value>Version:</value>
+  </data>
   <data name="TodoMarkerBug" xml:space="preserve">
     <value>BUG</value>
   </data>
@@ -1294,5 +1367,391 @@ NOTE: Restart is required for the setting to take effect.</value>
   </data>
   <data name="TodoMarkerTodo" xml:space="preserve">
     <value>TODO</value>
+  </data>
+  <data name="TodoSettings_TextLabel" xml:space="preserve">
+    <value>Text:</value>
+  </data>
+  <data name="TodoSettings_Text" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="TodoSettings_Caption" xml:space="preserve">
+    <value>TODO Explorer</value>
+  </data>
+  <data name="GeneralSettings_SetDpiUnaware" xml:space="preserve">
+    <value>Correction for high-resolution display scalings</value>
+  </data>
+  <data name="References_BrowseFilterAccess" xml:space="preserve">
+    <value>Microsoft Access Databases({0})|{0}</value>
+    <comment>{0} = semi-colon delimited extension list in the format of *.ext</comment>
+  </data>
+  <data name="References_BrowseFilterPowerPoint" xml:space="preserve">
+    <value>PowerPoint Addin Files({0})|{0}</value>
+    <comment>{0} = semi-colon delimited extension list in the format of *.ext</comment>
+  </data>
+  <data name="References_BrowseFilterWord" xml:space="preserve">
+    <value>Word Documents ({0})|{0}</value>
+    <comment>{0} = semi-colon delimited extension list in the format of *.ext</comment>
+  </data>
+  <data name="ReferenceSettings_FixBroken" xml:space="preserve">
+    <value>Attempt to fix broken references</value>
+  </data>
+  <data name="ReferenceSettings_FolderDialogHeader" xml:space="preserve">
+    <value>Browse for project folder</value>
+  </data>
+  <data name="ReferenceSettings_FoldersHeader" xml:space="preserve">
+    <value>Project Directories</value>
+  </data>
+  <data name="ReferenceSettings_RecentTracked" xml:space="preserve">
+    <value>Recent references tracked:</value>
+  </data>
+  <data name="ReferenceSettings_TrackHostReferences" xml:space="preserve">
+    <value>Track references not added by Rubberduck</value>
+  </data>
+  <data name="References_BrowseFilterOutlook" xml:space="preserve">
+    <value>Outlook VBA Files ({0})|{0}</value>
+    <comment>{0} = semi-colon delimited extension list in the format of *.ext</comment>
+  </data>
+  <data name="References_BrowseFilterPublisher" xml:space="preserve">
+    <value>Publisher Files ({0}|{0}</value>
+    <comment>{0} = semi-colon delimited extension list in the format of *.ext</comment>
+  </data>
+  <data name="References_BrowseFilterVisio" xml:space="preserve">
+    <value>All Visio Files ({0})|{0}</value>
+    <comment>{0} = semi-colon delimited extension list in the format of *.ext</comment>
+  </data>
+  <data name="References_DefaultLocale" xml:space="preserve">
+    <value>Standard</value>
+    <comment>Displayed as LCID description when locale is not specified.</comment>
+  </data>
+  <data name="cross_script" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\cross-script.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="magnifier_medium" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\magnifier-medium.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="References_CaptionTemplate" xml:space="preserve">
+    <value>Add/Remove References - {0}</value>
+    <comment>{0} = Project name</comment>
+  </data>
+  <data name="edit_size" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\edit-size.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="SyncArrows" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Custom\PNG\SyncArrows.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="arrow_090" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\arrow-090.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="arrow_090_dimmed" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\arrow-090-dimmed.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="arrow_270" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\arrow-270.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="arrow_270_dimmed" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\arrow-270-dimmed.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="References_AddToolTip" xml:space="preserve">
+    <value>Add to project</value>
+  </data>
+  <data name="References_MoveDownToolTip" xml:space="preserve">
+    <value>Move down</value>
+  </data>
+  <data name="References_MoveUpToolTip" xml:space="preserve">
+    <value>Move up</value>
+  </data>
+  <data name="References_PinToolTip" xml:space="preserve">
+    <value>Pin reference</value>
+  </data>
+  <data name="References_RemoveToolTip" xml:space="preserve">
+    <value>Remove from project</value>
+  </data>
+  <data name="MemberAttributeRecoveryRewriteFailedMessage" xml:space="preserve">
+    <value>Failed to recover member attributes.</value>
+  </data>
+  <data name="MemberAttributeRecoveryFailureCaption" xml:space="preserve">
+    <value>Member Attribute Recovery Failure </value>
+  </data>
+  <data name="MemberAttributeRecoveryMembersNotFoundMessage" xml:space="preserve">
+    <value>Member attributes for the following modules could not be recovered because they could no longer be found. {0}</value>
+    <comment>{0} = Missing member list</comment>
+  </data>
+  <data name="AllReferences_NoneFoundReference" xml:space="preserve">
+    <value>No uses were found for project reference '{0}'.</value>
+    <comment>{0} = reference name</comment>
+  </data>
+  <data name="AllReferences_PerformanceWarning" xml:space="preserve">
+    <value>Search for uses of reference '{0}' has returned {1} results. Displaying them may negatively impact performance. Continue?</value>
+    <comment>{0} = reference name, {1} = number of uses</comment>
+  </data>
+  <data name="PerformanceWarningCaption" xml:space="preserve">
+    <value>Performance Warning</value>
+  </data>
+  <data name="MoveCloserToUsageFailure_TargetIsNotUserDefined" xml:space="preserve">
+    <value>'{0}' is built-in.</value>
+    <comment>{0}: Variable Name</comment>
+  </data>
+  <data name="MoveCloserToUsageFailure_TargetIsInDifferentProject" xml:space="preserve">
+    <value>'{0}' is not defined in the same project it is used.</value>
+    <comment>{0}: Variable Name</comment>
+  </data>
+  <data name="MoveCloserToUsageFailure_TargetIsInOtherNonStandardModule" xml:space="preserve">
+    <value>'{0}' is defined neither in the component component it is used nor in a standard module. </value>
+    <comment>{0}: Variable Name</comment>
+  </data>
+  <data name="MoveCloserToUsageFailure_TargetIsNonPrivateInNonStandardModule" xml:space="preserve">
+    <value>'{0}' is a public member of of a class, form or document.</value>
+    <comment>{0}: Variable Name</comment>
+  </data>
+  <data name="MoveCloserToUsageFailure_ReferencingMethodHasSameNameDeclarationInScope" xml:space="preserve">
+    <value>The method using '{0}' already has the declaration '{1}' of the same name in scope.</value>
+    <comment>{0}: Variable Name; {1}: name of conflicting declaration</comment>
+  </data>
+  <data name="GroupingGrid_Filter" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="GroupingStyle_ByName" xml:space="preserve">
+    <value>By inspection</value>
+  </data>
+  <data name="GroupingStyle_BySeverity" xml:space="preserve">
+    <value>By severity</value>
+  </data>
+  <data name="InspectionResults_CollapseAll" xml:space="preserve">
+    <value>Collapse all</value>
+  </data>
+  <data name="InspectionResults_ExpandAll" xml:space="preserve">
+    <value>Expand all</value>
+  </data>
+  <data name="clock" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\clock.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="hourglass" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\hourglass.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="skull_mad" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>Icons\Fugue\skull-mad.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Language_ES" xml:space="preserve">
+    <value>Español</value>
+  </data>
+  <data name="References_BrowseButtonText" xml:space="preserve">
+    <value>Browse...</value>
+  </data>
+  <data name="RefactoringFailure_BaseMessage" xml:space="preserve">
+    <value>Refactoring failed.</value>
+  </data>
+  <data name="RefactoringFailure_NoActiveSelection" xml:space="preserve">
+    <value>There is no active selection.</value>
+  </data>
+  <data name="RefactoringFailure_NoTargetDeclarationForSelection" xml:space="preserve">
+    <value>No viable target selected.</value>
+  </data>
+  <data name="RefactoringFailure_TargetNull" xml:space="preserve">
+    <value>Target declaration is null.</value>
+  </data>
+  <data name="RenameFailure_TargetModuleWithoutCodeModule" xml:space="preserve">
+    <value>No code module found for the target module '{0}'.</value>
+    <comment>{0}: name of module</comment>
+  </data>
+  <data name="RenameFailure_TargetControlNotFound" xml:space="preserve">
+    <value>Target control '{0}' not found.</value>
+    <comment>{0}: name of control</comment>
+  </data>
+  <data name="RenameFailure_StandardEventHandler" xml:space="preserve">
+    <value>Target '{0}' is a standard event handler, which cannot be renamed.</value>
+    <comment>{0}: name of target</comment>
+  </data>
+  <data name="RefactoringFailure_TargetNotUserDefined" xml:space="preserve">
+    <value>The target is not user-defined.</value>
+    <comment>{0}: name of target</comment>
+  </data>
+  <data name="RefactoringFailure_InvalidDeclarationType" xml:space="preserve">
+    <value>Declaration type of target '{0}' is '{1}' instead of the expected '{2}'.</value>
+    <comment>{0}: name of target; {1}: actual declaration type; {2}: expected declaration type</comment>
+  </data>
+  <data name="ImplementInterfaceFailed_NoImplementsStatementSelected" xml:space="preserve">
+    <value>No implements selected.</value>
+  </data>
+  <data name="IntroduceFieldFailed_TargetIsAlreadyAField" xml:space="preserve">
+    <value>The target '{0}' is already a field.</value>
+    <comment>{0}: name of target</comment>
+  </data>
+  <data name="IntroduceParameterFailed_TargetNotContainedInMethod" xml:space="preserve">
+    <value>The target '{0}' is not contained in a method.</value>
+    <comment>{0}: name of target</comment>
+  </data>
+  <data name="RefactoringFailure_InvalidDeclarationType_multipleValid" xml:space="preserve">
+    <value>Declaration type of target '{0}' is '{1}' instead of one of the expected '{2}'.</value>
+    <comment>{0}: name of target; {1}: actual declaration type; {2}: expected declaration types</comment>
+  </data>
+  <data name="RegexAssistant_EncloseWhitespaceFlag" xml:space="preserve">
+    <value>Spell out whitespace in the description</value>
+  </data>
+  <data name="RegexAssistant_EncloseWhitespace_EnclosingFormat" xml:space="preserve">
+    <value>&lt;{0}&gt;</value>
+  </data>
+  <data name="RegexAssistant_SpelledOut_CarriageReturn" xml:space="preserve">
+    <value>carriage-return</value>
+  </data>
+  <data name="RegexAssistant_SpelledOut_CarriageReturnNewLine" xml:space="preserve">
+    <value>carriage-return-new-line</value>
+  </data>
+  <data name="RegexAssistant_SpelledOut_NewLine" xml:space="preserve">
+    <value>new-line</value>
+  </data>
+  <data name="RegexAssistant_SpelledOut_Space" xml:space="preserve">
+    <value>space</value>
+  </data>
+  <data name="RegexAssistant_SpelledOut_Tab" xml:space="preserve">
+    <value>tab</value>
+  </data>
+  <data name="RegexAssistant_SpelledOut_UnidentifiedWhitespace" xml:space="preserve">
+    <value>unidentified-whitespace</value>
+  </data>
+  <data name="TestOutcome_Fail" xml:space="preserve">
+    <value>Fail</value>
+  </data>
+  <data name="TestOutcome_Inconclusive" xml:space="preserve">
+    <value>Inconclusive</value>
+  </data>
+  <data name="TestOutcome_Succeeded" xml:space="preserve">
+    <value>Succeeded</value>
+  </data>
+  <data name="TestOutcome_Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="InvalidNameCriteria_DoesNotStartWithLetterFormat" xml:space="preserve">
+    <value>'{0}' does not begin with a letter</value>
+    <comment>{0} = code element name</comment>
+  </data>
+  <data name="InvalidNameCriteria_ExceedsMaximumLengthFormat" xml:space="preserve">
+    <value>'{0}' exceeds the maximum allowed string length</value>
+    <comment>{0} = code element name</comment>
+  </data>
+  <data name="InvalidNameCriteria_InvalidCharactersFormat" xml:space="preserve">
+    <value>'{0}' contains special character(s) other than underscores.</value>
+    <comment>{0} = code element name</comment>
+  </data>
+  <data name="InvalidNameCriteria_IsNullOrEmpty" xml:space="preserve">
+    <value>VBA Identifiers cannot be null or zero-length</value>
+  </data>
+  <data name="InvalidNameCriteria_IsReservedKeywordFormat" xml:space="preserve">
+    <value>'{0}' is a reserved keyword.</value>
+    <comment>{0} = code element name</comment>
+  </data>
+  <data name="MeaninglessNameCriteriaMatchFormat" xml:space="preserve">
+    <value>The identifier '{0}' will trigger a 'Use Meaningful Name' inspection result.</value>
+    <comment>{0} = code element name</comment>
+  </data>
+  <data name="AssignedByValDialog_MeaninglessNameFormat" xml:space="preserve">
+    <value>{0} Consider choosing a different name.</value>
+    <comment>{0} = Meaningless name message</comment>
+  </data>
+  <data name="TestExplorer_AppendHeader" xml:space="preserve">
+    <value>Rubberduck Test Results - {0}</value>
+  </data>
+  <data name="CodeExplorer_IExportable_DeclarationFormat" xml:space="preserve">
+    <value>{0} {1} {2} {3} {4} {5}</value>
+    <comment>{0}=Project; {1}=Folder; {2}=Component; {3}=DeclarationType; {4}=Scope; {5}=Name</comment>
+  </data>
+  <data name="RefactoringFailure_SuspendParserFailure" xml:space="preserve">
+    <value>Unable to suspend the Parser to perform the refactoring operation</value>
+  </data>
+  <data name="GeneralSettings_IncludePreRelease" xml:space="preserve">
+    <value>Tell me if a newer pre-release build is available</value>
+  </data>
+  <data name="VersionCheck_BuildType_PreRelease" xml:space="preserve">
+    <value>pre-release</value>
+  </data>
+  <data name="VersionCheck_BuildType_Release" xml:space="preserve">
+    <value>release</value>
+  </data>
+  <data name="ImportCommand_UnsupportedFileExtensions" xml:space="preserve">
+    <value>The extension of the file '{0}' is not supported.
+
+Import aborted.</value>
+    <comment>{0} filename of unsupported file</comment>
+  </data>
+  <data name="ReplaceProjectContentsFromFilesCommand_DialogCaption" xml:space="preserve">
+    <value>Replace Project Content from Files</value>
+  </data>
+  <data name="ReplaceProjectContentsFromFilesCommand_ConfirmationMessage" xml:space="preserve">
+    <value>Do you really want to delete the contents of project '{0}' and replace them with the contents of the selected files?</value>
+    <comment>{0} project name</comment>
+  </data>
+  <data name="UpdateFromFilesCommand_DialogCaption" xml:space="preserve">
+    <value>Update Components from Files</value>
+  </data>
+  <data name="ImportCommand_DuplicateModule" xml:space="preserve">
+    <value>Multiple files contain code for the component '{0}'.
+
+Import aborted.</value>
+    <comment>{0} module name</comment>
+  </data>
+  <data name="UpdateFromFilesCommand_DifferentComponentType" xml:space="preserve">
+    <value>The component type of the existing component '{0}' does not agree with that indicated by the extension of file '{1}'.
+
+Import aborted.</value>
+    <comment>{0} module name, {1} filename</comment>
+  </data>
+  <data name="ImportCommand_DocumentDoesNotExist" xml:space="preserve">
+    <value>There is no existing document module with name '{0}'; file '{1}' cannot be imported.
+
+Import aborted.</value>
+    <comment>{0} module name, {1} filename</comment>
+  </data>
+  <data name="ImportCommand_BinaryAndComponentDoNotExist" xml:space="preserve">
+    <value>For file '{0}', the required binary file(s) '{1}' are missing and the target component '{2}' does not already exists.
+
+Import aborted.</value>
+    <comment>{0} filename, {1} binaries, {2} module name</comment>
+  </data>
+  <data name="ImportCommand_BinaryDoesNotExist" xml:space="preserve">
+    <value>For file '{0}', the requires binary file(s) '{1}' are missing.
+
+Import aborted.</value>
+    <comment>{0} filename, {1} binaries</comment>
+  </data>
+  <data name="ComponentType_ActiveXDesigner" xml:space="preserve">
+    <value>ActiveX Designer</value>
+  </data>
+  <data name="ComponentType_ClassModule" xml:space="preserve">
+    <value>Class Module</value>
+  </data>
+  <data name="ComponentType_ComComponent" xml:space="preserve">
+    <value>COM component</value>
+  </data>
+  <data name="ComponentType_DocObject" xml:space="preserve">
+    <value>Document Object</value>
+  </data>
+  <data name="ComponentType_Document" xml:space="preserve">
+    <value>Document Module</value>
+  </data>
+  <data name="ComponentType_MDIForm" xml:space="preserve">
+    <value>MDI Form</value>
+  </data>
+  <data name="ComponentType_PropPage" xml:space="preserve">
+    <value>Property Page</value>
+  </data>
+  <data name="ComponentType_RelatedDocument" xml:space="preserve">
+    <value>Related Document</value>
+  </data>
+  <data name="ComponentType_ResFile" xml:space="preserve">
+    <value>Resource File</value>
+  </data>
+  <data name="ComponentType_StandardModule" xml:space="preserve">
+    <value>Standard Module</value>
+  </data>
+  <data name="ComponentType_Undefined" xml:space="preserve">
+    <value>Undefined</value>
+  </data>
+  <data name="ComponentType_UserControl" xml:space="preserve">
+    <value>User Control</value>
+  </data>
+  <data name="ComponentType_UserForm" xml:space="preserve">
+    <value>UserForm</value>
+  </data>
+  <data name="ComponentType_VBForm" xml:space="preserve">
+    <value>VB Form</value>
   </data>
 </root>

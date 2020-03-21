@@ -5,6 +5,7 @@ using System.Threading;
 using Rubberduck.Parsing.Inspections.Abstract;
 using Rubberduck.Parsing.Rewriter;
 using Rubberduck.Parsing.VBA;
+using Rubberduck.Parsing.VBA.Parsing;
 using Rubberduck.VBEditor;
 using Rubberduck.VBEditor.SafeComWrappers;
 using Rubberduck.VBEditor.SafeComWrappers.Abstract;
@@ -23,31 +24,67 @@ namespace RubberduckTests.QuickFixes
         }
 
         protected string ApplyQuickFixToFirstInspectionResult(string inputCode,
-            Func<RubberduckParserState, IInspection> inspectionFactory)
+            Func<RubberduckParserState, IInspection> inspectionFactory, 
+            CodeKind codeKind = CodeKind.CodePaneCode)
         {
             return ApplyQuickFixToAppropriateInspectionResults(
                 inputCode,
                 inspectionFactory,
-                ApplyToFirstResult);
+                ApplyToFirstResult,
+                codeKind);
+        }
+
+        protected string ApplyQuickFixToFirstInspectionResult(
+            IVBE vbe,
+            string componentName,
+            Func<RubberduckParserState, IInspection> inspectionFactory,
+            CodeKind codeKind = CodeKind.CodePaneCode)
+        {
+            return ApplyQuickFixToAppropriateInspectionResults(
+                vbe,
+                componentName,
+                inspectionFactory,
+                ApplyToFirstResult,
+                codeKind);
         }
 
         private string ApplyQuickFixToAppropriateInspectionResults(string inputCode,
             Func<RubberduckParserState, IInspection> inspectionFactory,
-            Action<IQuickFix, IEnumerable<IInspectionResult>, IRewriteSession> applyQuickFix)
+            Action<IQuickFix, IEnumerable<IInspectionResult>, IRewriteSession> applyQuickFix,
+            CodeKind codeKind)
         {
             var vbe = TestVbe(inputCode, out var component);
+            return ApplyQuickFixToAppropriateInspectionResults(
+                vbe,
+                component.Name,
+                inspectionFactory,
+                applyQuickFix,
+                codeKind);
+        }
+
+        private string ApplyQuickFixToAppropriateInspectionResults(
+            IVBE vbe,
+            string componentName,
+            Func<RubberduckParserState, IInspection> inspectionFactory,
+            Action<IQuickFix, IEnumerable<IInspectionResult>, IRewriteSession> applyQuickFix,
+            CodeKind codeKind)
+        {
             var (state, rewriteManager) = MockParser.CreateAndParseWithRewritingManager(vbe);
             using (state)
             {
                 var inspection = inspectionFactory(state);
                 var inspectionResults = InspectionResults(inspection, state);
-                var rewriteSession = rewriteManager.CheckOutCodePaneSession();
+                var rewriteSession = codeKind == CodeKind.AttributesCode
+                    ? rewriteManager.CheckOutAttributesSession()
+                    : rewriteManager.CheckOutCodePaneSession();
 
                 var quickFix = QuickFix(state);
 
                 applyQuickFix(quickFix, inspectionResults, rewriteSession);
 
-                return rewriteSession.CheckOutModuleRewriter(component.QualifiedModuleName).GetText();
+                var module = state.DeclarationFinder.AllModules.First(qmn => qmn.ComponentName == componentName);
+
+                return rewriteSession.CheckOutModuleRewriter(module).GetText();
             }
         }
 
@@ -68,13 +105,29 @@ namespace RubberduckTests.QuickFixes
             quickFix.Fix(resultToFix, rewriteSession);
         }
 
+        protected string ApplyQuickFixToAllInspectionResults(
+            IVBE vbe,
+            string componentName,
+            Func<RubberduckParserState, IInspection> inspectionFactory,
+            CodeKind codeKind = CodeKind.CodePaneCode)
+        {
+            return ApplyQuickFixToAppropriateInspectionResults(
+                vbe,
+                componentName,
+                inspectionFactory,
+                ApplyToAllResults,
+                codeKind);
+        }
+
         protected string ApplyQuickFixToAllInspectionResults(string inputCode,
-            Func<RubberduckParserState, IInspection> inspectionFactory)
+            Func<RubberduckParserState, IInspection> inspectionFactory,
+            CodeKind codeKind = CodeKind.CodePaneCode)
         {
             return ApplyQuickFixToAppropriateInspectionResults(
                 inputCode,
                 inspectionFactory,
-                ApplyToAllResults);
+                ApplyToAllResults,
+                codeKind);
         }
 
         private void ApplyToAllResults(IQuickFix quickFix, IEnumerable<IInspectionResult> inspectionResults, IRewriteSession rewriteSession)
@@ -88,22 +141,25 @@ namespace RubberduckTests.QuickFixes
 
 
         protected (string interfaceCode, string implementationCode) ApplyQuickFixToFirstInspectionResultForImplementedInterface(
-        string interfaceInputCode,
-        string implementationInputCode,
-        Func<RubberduckParserState, IInspection> inspectionFactory)
+            string interfaceInputCode,
+            string implementationInputCode,
+            Func<RubberduckParserState, IInspection> inspectionFactory,
+            CodeKind codeKind = CodeKind.CodePaneCode)
         {
             return ApplyQuickFixToAppropriateInspectionResultsForImplementedInterface(
                 interfaceInputCode,
                 implementationInputCode,
                 inspectionFactory,
-                ApplyToFirstResult);
+                ApplyToFirstResult,
+                codeKind);
         }
 
         private (string interfaceCode, string implementationCode) ApplyQuickFixToAppropriateInspectionResultsForImplementedInterface(
             string interfaceCode, 
             string implementationCode,
             Func<RubberduckParserState, IInspection> inspectionFactory,
-            Action<IQuickFix, IEnumerable<IInspectionResult>, IRewriteSession> applyQuickFix)
+            Action<IQuickFix, IEnumerable<IInspectionResult>, IRewriteSession> applyQuickFix,
+            CodeKind codeKind)
         {
             var (vbe, interfaceModuleName, implementationModuleName) = TestVbeForImplementedInterface(interfaceCode, implementationCode);
 
@@ -112,7 +168,9 @@ namespace RubberduckTests.QuickFixes
             {
                 var inspection = inspectionFactory(state);
                 var inspectionResults = InspectionResults(inspection, state);
-                var rewriteSession = rewriteManager.CheckOutCodePaneSession();
+                var rewriteSession = codeKind == CodeKind.AttributesCode 
+                    ? rewriteManager.CheckOutAttributesSession() 
+                    : rewriteManager.CheckOutCodePaneSession();
 
                 var quickFix = QuickFix(state);
 
@@ -145,14 +203,16 @@ namespace RubberduckTests.QuickFixes
             string interfaceInputCode,
             string implementationInputCode,
             Func<RubberduckParserState, IInspection> inspectionFactory,
-            Func<IInspectionResult, bool> predicate)
+            Func<IInspectionResult, bool> predicate,
+            CodeKind codeKind = CodeKind.CodePaneCode)
         {
             var applyQuickFix = ApplyToFirstResultSatisfyingPredicateAction(predicate);
             return ApplyQuickFixToAppropriateInspectionResultsForImplementedInterface(
                 interfaceInputCode,
                 implementationInputCode,
                 inspectionFactory,
-                applyQuickFix);
+                applyQuickFix,
+                codeKind);
         }
 
         private Action<IQuickFix, IEnumerable<IInspectionResult>, IRewriteSession> ApplyToFirstResultSatisfyingPredicateAction(Func<IInspectionResult, bool> predicate)
@@ -164,13 +224,15 @@ namespace RubberduckTests.QuickFixes
         protected string ApplyQuickFixToFirstInspectionResultSatisfyingPredicate(
             string code,
             Func<RubberduckParserState, IInspection> inspectionFactory,
-            Func<IInspectionResult, bool> predicate)
+            Func<IInspectionResult, bool> predicate,
+            CodeKind codeKind = CodeKind.CodePaneCode)
         {
             var applyQuickFix = ApplyToFirstResultSatisfyingPredicateAction(predicate);
             return ApplyQuickFixToAppropriateInspectionResults(
                 code,
                 inspectionFactory,
-                applyQuickFix);
+                applyQuickFix,
+                codeKind);
         }
     }
 }

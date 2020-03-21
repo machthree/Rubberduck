@@ -1,3 +1,4 @@
+using System;
 using NUnit.Framework;
 using Moq;
 using System.Linq;
@@ -6,8 +7,12 @@ using Rubberduck.Parsing.VBA;
 using Rubberduck.Settings;
 using Rubberduck.UI.ToDoItems;
 using RubberduckTests.Mocks;
-using Rubberduck.Common;
+using Rubberduck.Parsing.UIContext;
+using Rubberduck.SettingsProvider;
+using Rubberduck.ToDoItems;
+using Rubberduck.UI.Command.ComCommands;
 using Rubberduck.VBEditor.SafeComWrappers;
+using Rubberduck.VBEditor.Utility;
 
 namespace RubberduckTests.TodoExplorer
 {
@@ -34,7 +39,7 @@ namespace RubberduckTests.TodoExplorer
             using (var state = parser.State)
             {
                 var cs = GetConfigService(new[] { "TODO", "NOTE", "BUG" });
-                var vm = new ToDoExplorerViewModel(state, cs, null);
+                var vm = ArrangeViewModel(state, cs);
 
                 parser.Parse(new CancellationTokenSource());
                 if (state.Status >= ParserState.Error)
@@ -42,7 +47,7 @@ namespace RubberduckTests.TodoExplorer
                     Assert.Inconclusive("Parser Error");
                 }
 
-                var comments = vm.Items.Select(s => s.Type);
+                var comments = vm.Items.OfType<ToDoItem>().Select(s => s.Type);
 
                 Assert.IsTrue(comments.SequenceEqual(new[] { "TODO", "NOTE", "BUG" }));
             }
@@ -69,7 +74,7 @@ namespace RubberduckTests.TodoExplorer
             using (var state = parser.State)
             {
                 var cs = GetConfigService(new[] { "TODO", "NOTE", "BUG" });
-                var vm = new ToDoExplorerViewModel(state, cs, null);
+                var vm = ArrangeViewModel(state, cs);
 
                 parser.Parse(new CancellationTokenSource());
                 if (state.Status >= ParserState.Error)
@@ -77,7 +82,7 @@ namespace RubberduckTests.TodoExplorer
                     Assert.Inconclusive("Parser Error");
                 }
 
-                var comments = vm.Items.Select(s => s.Type);
+                var comments = vm.Items.OfType<ToDoItem>().Select(s => s.Type);
 
                 Assert.IsTrue(comments.SequenceEqual(new[] { "TODO", "NOTE", "BUG", "BUG" }));
             }
@@ -104,7 +109,7 @@ namespace RubberduckTests.TodoExplorer
             using (var state = parser.State)
             {
                 var cs = GetConfigService(new[] { "TO-DO", "N@TE", "BUG " });
-                var vm = new ToDoExplorerViewModel(state, cs, null);
+                var vm = ArrangeViewModel(state, cs);
 
                 parser.Parse(new CancellationTokenSource());
                 if (state.Status >= ParserState.Error)
@@ -112,7 +117,7 @@ namespace RubberduckTests.TodoExplorer
                     Assert.Inconclusive("Parser Error");
                 }
 
-                var comments = vm.Items.Select(s => s.Type);
+                var comments = vm.Items.OfType<ToDoItem>().Select(s => s.Type);
 
                 Assert.IsTrue(comments.SequenceEqual(new[] { "TO-DO", "N@TE", "BUG " }));
             }
@@ -138,7 +143,7 @@ namespace RubberduckTests.TodoExplorer
             using (var state = parser.State)
             {
                 var cs = GetConfigService(new[] { "TODO", "NOTE", "BUG" });
-                var vm = new ToDoExplorerViewModel(state, cs, null);
+                var vm = ArrangeViewModel(state, cs);
 
                 parser.Parse(new CancellationTokenSource());
                 if (state.Status >= ParserState.Error)
@@ -146,7 +151,7 @@ namespace RubberduckTests.TodoExplorer
                     Assert.Inconclusive("Parser Error");
                 }
 
-                var comments = vm.Items.Select(s => s.Type);
+                var comments = vm.Items.OfType<ToDoItem>().Select(s => s.Type);
 
                 Assert.IsTrue(comments.Count() == 0);
             }
@@ -168,32 +173,32 @@ namespace RubberduckTests.TodoExplorer
                 .Build();
 
             var vbe = builder.AddProject(project).Build();
+            var vbeEvents = MockVbeEvents.CreateMockVbeEvents(vbe);
 
-            var parser = MockParser.Create(vbe.Object);
+            var parser = MockParser.Create(vbe.Object, vbeEvents:vbeEvents);
             using (var state = parser.State)
             {
                 var cs = GetConfigService(new[] { "TODO", "NOTE", "BUG" });
-                var vm = new ToDoExplorerViewModel(state, cs, null);
-
+                var vm = ArrangeViewModel(state, cs);
+                
                 parser.Parse(new CancellationTokenSource());
                 if (state.Status >= ParserState.Error)
                 {
                     Assert.Inconclusive("Parser Error");
                 }
 
-                vm.SelectedItem = vm.Items.Single();
+                vm.SelectedItem = vm.Items.OfType<ToDoItem>().Single();
                 vm.RemoveCommand.Execute(null);
 
                 var module = project.Object.VBComponents[0].CodeModule;
                 Assert.AreEqual(expected, module.Content());
-                Assert.IsFalse(vm.Items.Any());
             }
         }
 
-        private IGeneralConfigService GetConfigService(string[] markers)
+        private IConfigurationService<Configuration> GetConfigService(string[] markers)
         {
-            var configService = new Mock<IGeneralConfigService>();
-            configService.Setup(c => c.LoadConfiguration()).Returns(GetTodoConfig(markers));
+            var configService = new Mock<IConfigurationService<Configuration>>();
+            configService.Setup(c => c.Read()).Returns(GetTodoConfig(markers));
 
             return configService.Object;
         }
@@ -207,6 +212,18 @@ namespace RubberduckTests.TodoExplorer
 
             var userSettings = new UserSettings(null, null, null, todoSettings, null, null, null, null);
             return new Configuration(userSettings);
+        }
+
+        private IUiDispatcher GetMockedUiDispatcher()
+        {
+            var dispatcher = new Mock<IUiDispatcher>();
+            dispatcher.Setup(m => m.Invoke(It.IsAny<Action>())).Callback((Action argument) => argument.Invoke());
+            return dispatcher.Object;
+        }
+
+        private ToDoExplorerViewModel ArrangeViewModel(RubberduckParserState state, IConfigurationService<Configuration> configService)
+        {
+            return new ToDoExplorerViewModel(state, configService, null, GetMockedUiDispatcher(), null);
         }
     }
 }

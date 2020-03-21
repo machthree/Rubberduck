@@ -1,177 +1,252 @@
 ﻿using System;
-using System.Diagnostics;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Annotations;
+using System.Windows.Data;
 using NLog;
 using Rubberduck.Common;
-using Rubberduck.Interaction;
 using Rubberduck.Interaction.Navigation;
+using Rubberduck.Parsing.Annotations;
+using Rubberduck.Parsing.Rewriter;
 using Rubberduck.Parsing.VBA;
+using Rubberduck.Resources;
 using Rubberduck.Settings;
+using Rubberduck.SettingsProvider;
 using Rubberduck.UI.Command;
+using Rubberduck.UI.Command.ComCommands;
 using Rubberduck.UI.Settings;
+using Rubberduck.UI.UnitTesting.ComCommands;
 using Rubberduck.UI.UnitTesting.Commands;
 using Rubberduck.UI.UnitTesting.ViewModels;
 using Rubberduck.UnitTesting;
-using Rubberduck.VBEditor.SafeComWrappers.Abstract;
+using Rubberduck.VBEditor.Utility;
+using Rubberduck.Formatters;
 
 namespace Rubberduck.UI.UnitTesting
 {
-    internal class TestExplorerViewModel : ViewModelBase, INavigateSelection, IDisposable
+    public enum TestExplorerGrouping
     {
-        private readonly IVBE _vbe;
-        private readonly RubberduckParserState _state;
-        private readonly ITestEngine _testEngine;
+        None,
+        Outcome,
+        Category,
+        Location
+    }
+
+    [Flags]
+    public enum TestExplorerOutcomeFilter
+    {
+        None = 0,
+        Unknown = 1,
+        Fail = 1 << 1,
+        Inconclusive = 1 << 2,
+        Succeeded = 1 << 3,
+        All = Unknown | Fail | Inconclusive | Succeeded
+    }
+
+    internal sealed class TestExplorerViewModel : ViewModelBase, INavigateSelection, IDisposable
+    {
         private readonly IClipboardWriter _clipboard;
         private readonly ISettingsFormFactory _settingsFormFactory;
-        private readonly IMessageBox _messageBox;
 
-        public TestExplorerViewModel(IVBE vbe,
-             RubberduckParserState state,
-             ITestEngine testEngine,
-             TestExplorerModel model,
-             IClipboardWriter clipboard,
-             IGeneralConfigService configService,
-             ISettingsFormFactory settingsFormFactory,
-             IMessageBox messageBox,
-             ReparseCommand reparseCommand)
+        public TestExplorerViewModel(ISelectionService selectionService,
+            TestExplorerModel model,
+            IClipboardWriter clipboard,
+            // ReSharper disable once UnusedParameter.Local - left in place because it will likely be needed for app wide font settings, etc.
+            IConfigurationService<Configuration> configService,
+            ISettingsFormFactory settingsFormFactory,
+            IRewritingManager rewritingManager,
+            IAnnotationUpdater annotationUpdater)
         {
-            _vbe = vbe;
-            _state = state;
-            _testEngine = testEngine;
-            _testEngine.TestCompleted += TestEngineTestCompleted;
-            Model = model;
             _clipboard = clipboard;
             _settingsFormFactory = settingsFormFactory;
-            _messageBox = messageBox;
 
-            _navigateCommand = new NavigateCommand(_state.ProjectsProvider);
-            
-            RunSelectedTestCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteSelectedTestCommand, CanExecuteSelectedTestCommand);
-            RunSelectedCategoryTestsCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteRunSelectedCategoryTestsCommand, CanExecuteRunSelectedCategoryTestsCommand);
-
+            NavigateCommand = new NavigateCommand(selectionService);  
+            RunSingleTestCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteSingleTestCommand, CanExecuteSingleTest);
+            RunSelectedTestsCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteSelectedTestsCommand, CanExecuteSelectedTestsCommand);
+            RunSelectedGroupCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteRunSelectedGroupCommand, CanExecuteSelectedGroupCommand);
+            CancelTestRunCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteCancelTestRunCommand, CanExecuteCancelTestRunCommand);
+            ResetResultsCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteResetResultsCommand, CanExecuteResetResultsCommand);
             CopyResultsCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteCopyResultsCommand);
-
             OpenTestSettingsCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), OpenSettings);
+            CollapseAllCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteCollapseAll);
+            ExpandAllCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteExpandAll);
+            IgnoreTestCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteIgnoreTestCommand);
+            UnignoreTestCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), ExecuteUnignoreTestCommand);
 
-            SetOutcomeGroupingCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), param =>
+            RewritingManager = rewritingManager;
+            AnnotationUpdater = annotationUpdater;
+
+            Model = model;
+            Model.TestCompleted += HandleTestCompletion;
+
+            if (CollectionViewSource.GetDefaultView(Model.Tests) is ListCollectionView tests)
             {
-                GroupByOutcome = true;
+                tests.SortDescriptions.Add(new SortDescription("QualifiedName.QualifiedModuleName.Name", ListSortDirection.Ascending));
+                tests.SortDescriptions.Add(new SortDescription("QualifiedName.MemberName", ListSortDirection.Ascending));
+                Tests = tests;
+            }
 
-                if ((bool)param)
-                {
-                    GroupByLocation = false;
-                    GroupByCategory = false;
-                }
-            });
+            OnPropertyChanged(nameof(Tests));
+            TestGrouping = TestExplorerGrouping.Outcome;
 
-            SetLocationGroupingCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), param =>
-            {
-                GroupByLocation = true;
-
-                if ((bool)param)
-                {
-                    GroupByOutcome = false;
-                    GroupByCategory = false;
-                }
-            });
-
-            SetCategoryGroupingCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), param =>
-            {
-                GroupByCategory = true;
-
-                if ((bool)param)
-                {
-                    GroupByOutcome = false;
-                    GroupByLocation = false;
-                }
-            });
+            OutcomeFilter = TestExplorerOutcomeFilter.All;
         }
 
-        public event EventHandler<TestCompletedEventArgs> TestCompleted;
-        private void TestEngineTestCompleted(object sender, TestCompletedEventArgs e)
-        {
-            // Propagate the event
-            TestCompleted?.Invoke(sender, e);
-        }
+        public TestExplorerModel Model { get; }
 
-        public INavigateSource SelectedItem => SelectedTest;
+        public ICollectionView Tests { get; }
 
-        private TestMethodViewModel _selectedTest;
-        public TestMethodViewModel SelectedTest
+        public INavigateSource SelectedItem => MouseOverTest;
+
+        private TestMethodViewModel _mouseOverTest;
+        public TestMethodViewModel MouseOverTest
         {
-            get => _selectedTest;
+            get => _mouseOverTest;
             set
             {
-                _selectedTest = value;
+                if (ReferenceEquals(_mouseOverTest, value))
+                {
+                    return;
+                }
+                _mouseOverTest = value;
                 OnPropertyChanged();
+                RefreshContextMenu();
             }
         }
 
-        private bool _groupByOutcome = true;
-        public bool GroupByOutcome
+        private CollectionViewGroup _mouseOverGroup;
+        public CollectionViewGroup MouseOverGroup
         {
-            get => _groupByOutcome;
+            get => _mouseOverGroup;
             set
             {
-                if (_groupByOutcome == value)
+                if (ReferenceEquals(_mouseOverGroup, value))
+                {
+                    return;
+                }
+                _mouseOverGroup = value;
+                OnPropertyChanged();
+                RefreshContextMenu();
+            }
+        }
+
+        private void RefreshContextMenu()
+        {
+            OnPropertyChanged(nameof(DisplayUnignoreTestLabel));
+            OnPropertyChanged(nameof(DisplayIgnoreTestLabel));
+        }
+
+        private static readonly Dictionary<TestExplorerGrouping, PropertyGroupDescription> GroupDescriptions = new Dictionary<TestExplorerGrouping, PropertyGroupDescription>
+        {
+            { TestExplorerGrouping.Outcome, new PropertyGroupDescription("Result.Outcome", new TestResultToOutcomeTextConverter()) },
+            { TestExplorerGrouping.Location, new PropertyGroupDescription("QualifiedName.QualifiedModuleName.Name") },
+            { TestExplorerGrouping.Category, new PropertyGroupDescription("Method.Category.Name") }
+        };
+
+        private TestExplorerGrouping _grouping = TestExplorerGrouping.None;
+
+        public TestExplorerGrouping TestGrouping
+        {
+            get => _grouping;
+            set
+            {
+                if (value == _grouping)
                 {
                     return;
                 }
 
-                _groupByOutcome = value;
+                _grouping = value;
+                Tests.GroupDescriptions.Clear();
+                Tests.GroupDescriptions.Add(GroupDescriptions[_grouping]);
+                Tests.Refresh();
                 OnPropertyChanged();
             }
         }
 
-        private bool _groupByLocation;
-        public bool GroupByLocation
+        private TestExplorerOutcomeFilter _outcomeFilter = TestExplorerOutcomeFilter.All;
+        public TestExplorerOutcomeFilter OutcomeFilter
         {
-            get => _groupByLocation;
+            get => _outcomeFilter;
             set
             {
-                if (_groupByLocation == value)
+                if (value == _outcomeFilter)
                 {
                     return;
                 }
 
-                _groupByLocation = value;
+                _outcomeFilter = value;
                 OnPropertyChanged();
+
+                Tests.Filter = FilterResults;
             }
         }
 
-        private bool _groupByCategory;
-        public bool GroupByCategory
+        private string _testNameFilter = string.Empty;
+        public string TestNameFilter
         {
-            get => _groupByCategory;
+            get => _testNameFilter;
             set
             {
-                if (_groupByCategory == value)
+                if (_testNameFilter != value)
                 {
-                    return;
+                    _testNameFilter = value;
+                    OnPropertyChanged();
+                    Tests.Filter = FilterResults;
+                    OnPropertyChanged(nameof(Tests));
                 }
-
-                _groupByCategory = value;
-                OnPropertyChanged();
             }
         }
 
-        public CommandBase SetOutcomeGroupingCommand { get; }
+        private bool _expanded;
+        public bool ExpandedState
+        {
+            get => _expanded;
+            set
+            {
+                _expanded = value;
+                OnPropertyChanged();
+            }
+        }
+        /// <summary>
+        /// Filtering for displaying the correct tests.
+        /// Uses both <see cref="OutcomeFilter"/> and <see cref="TestNameFilter"/>
+        /// </summary>
+        private bool FilterResults(object unitTest)
+        {
+            var testMethodViewModel = unitTest as TestMethodViewModel;
 
-        public CommandBase SetLocationGroupingCommand { get; }
+            var passesNameFilter = testMethodViewModel.QualifiedName.MemberName.ToUpper().Contains(TestNameFilter?.ToUpper() ?? string.Empty);
 
-        public CommandBase SetCategoryGroupingCommand { get; }
+            Enum.TryParse(testMethodViewModel.Result.Outcome.ToString(), out TestExplorerOutcomeFilter convertedOutcome);
+            var passesOutcomeFilter = (OutcomeFilter & convertedOutcome) == convertedOutcome;
+
+            return passesNameFilter && passesOutcomeFilter;
+        }
+
+        private void HandleTestCompletion(object sender, TestCompletedEventArgs e)
+        {
+            if (TestGrouping != TestExplorerGrouping.Outcome)
+            {
+                return;
+            }
+
+            Tests.Refresh();
+        }
+
+        public IRewritingManager RewritingManager { get; }
+        public IAnnotationUpdater AnnotationUpdater { get; }
+
+        private TestMethod _mousedOverTestMethod => ((TestMethodViewModel)SelectedItem).Method;
+        public bool DisplayUnignoreTestLabel => SelectedItem != null && _mousedOverTestMethod.IsIgnored;
+        public bool DisplayIgnoreTestLabel => SelectedItem != null && !_mousedOverTestMethod.IsIgnored;
         
-
-        public AddTestModuleCommand AddTestModuleCommand { get; set; }
-
-        public AddTestMethodCommand AddTestMethodCommand { get; set; }
-
-        public AddTestMethodExpectedErrorCommand AddErrorTestMethodCommand { get; set; }
+        #region Commands
 
         public ReparseCommand RefreshCommand { get; set; }
-
 
         public RunAllTestsCommand RunAllTestsCommand { get; set; }
         public RepeatLastRunCommand RepeatLastRunCommand { get; set; }
@@ -180,43 +255,145 @@ namespace Rubberduck.UI.UnitTesting
         public RunInconclusiveTestsCommand RunInconclusiveTestsCommand { get; set; }
         public RunFailedTestsCommand RunFailedTestsCommand { get; set; }
         public RunSucceededTestsCommand RunPassedTestsCommand { get; set; }
-        public CommandBase RunSelectedTestCommand { get; }
-        public CommandBase RunSelectedCategoryTestsCommand { get; }
+        public CommandBase RunSingleTestCommand { get; }
+        public CommandBase RunSelectedTestsCommand { get; }
+        public CommandBase RunSelectedGroupCommand { get; }
 
+        public CommandBase CancelTestRunCommand { get; }
+        public CommandBase ResetResultsCommand { get; }
+
+        public AddTestModuleCommand AddTestModuleCommand { get; set; }
+        public AddTestMethodCommand AddTestMethodCommand { get; set; }
+        public AddTestMethodExpectedErrorCommand AddErrorTestMethodCommand { get; set; }
 
         public CommandBase CopyResultsCommand { get; }
 
-        private readonly NavigateCommand _navigateCommand;
-        public INavigateCommand NavigateCommand => _navigateCommand;
-
         public CommandBase OpenTestSettingsCommand { get; }
 
-        private void OpenSettings(object param)
+        public INavigateCommand NavigateCommand { get; }
+
+        public CommandBase CollapseAllCommand { get; }
+        public CommandBase ExpandAllCommand { get; }
+
+        public CommandBase IgnoreTestCommand { get; }
+        public CommandBase UnignoreTestCommand { get; }
+
+        #endregion
+
+        #region Delegates
+
+        private bool CanExecuteSingleTest(object obj)
         {
-            using (var window = _settingsFormFactory.Create())
-            {
-                window.ShowDialog();
-                _settingsFormFactory.Release(window);
-            }
+            return !Model.IsBusy && MouseOverTest != null;
         }
 
-        public TestExplorerModel Model { get; }
-
-        private bool CanExecuteSelectedTestCommand(object obj)
+        private bool CanExecuteSelectedTestsCommand(object obj)
         {
-            return !Model.IsBusy && SelectedItem != null;
+            return !Model.IsBusy && obj is IList viewModels && viewModels.Count > 0;
         }
 
-        private void ExecuteSelectedTestCommand(object obj)
+        private bool CanExecuteSelectedGroupCommand(object obj)
         {
-            if (SelectedTest == null)
+            return !Model.IsBusy && (MouseOverTest != null || MouseOverGroup != null);
+        }
+
+        private bool CanExecuteResetResultsCommand(object obj)
+        {
+            return !Model.IsBusy && Tests.OfType<TestMethodViewModel>().Any(test => test.Result.Outcome != TestOutcome.Unknown);
+        }
+
+        private bool CanExecuteCancelTestRunCommand(object obj)
+        {
+            return Model.IsBusy;
+        }
+
+        private void ExecuteCollapseAll(object parameter)
+        {
+            ExpandedState = false;
+        }
+
+        private void ExecuteExpandAll(object parameter)
+        {
+            ExpandedState = true;
+        }
+
+        private void ExecuteSingleTestCommand(object obj)
+        {
+            if (MouseOverTest == null)
             {
                 return;
             }
-            
-            Model.IsBusy = true;
-            _testEngine.Run(new[] { SelectedTest.Method });
-            Model.IsBusy = false;
+
+            Model.ExecuteTests(new List<TestMethodViewModel> { MouseOverTest });
+        }
+
+        private void ExecuteSelectedTestsCommand(object obj)
+        {
+            if (Model.IsBusy || !(obj is IList viewModels && viewModels.Count > 0))
+            {
+                return;
+            }
+
+            var models = viewModels.OfType<TestMethodViewModel>().ToList();
+
+            if (!models.Any())
+            {
+                return;
+            }
+
+            Model.ExecuteTests(models);
+        }
+
+        private void ExecuteRunSelectedGroupCommand(object obj)
+        {
+            var tests = MouseOverTest is null
+                ? MouseOverGroup
+                : Tests.Groups.OfType<CollectionViewGroup>().FirstOrDefault(group => group.Items.Contains(MouseOverTest));
+
+            if (tests is null)
+            {
+                return;
+            }
+
+            Model.ExecuteTests(tests.Items.OfType<TestMethodViewModel>().ToList());
+        }
+
+        private void ExecuteCancelTestRunCommand(object parameter)
+        {
+            Model.CancelTestRun();
+        }
+
+        private void ExecuteResetResultsCommand(object parameter)
+        {
+            foreach (var test in Tests.OfType<TestMethodViewModel>())
+            {
+                test.Result = new TestResult(TestOutcome.Unknown);
+            }
+
+            Tests.Refresh();
+        }
+
+        private void ExecuteIgnoreTestCommand(object parameter)
+        {
+            var rewriteSession = RewritingManager.CheckOutCodePaneSession();
+
+            AnnotationUpdater.AddAnnotation(rewriteSession, _mousedOverTestMethod.Declaration, new IgnoreTestAnnotation());
+
+            rewriteSession.TryRewrite();
+        }
+
+        private void ExecuteUnignoreTestCommand(object parameter)
+        {
+            var rewriteSession = RewritingManager.CheckOutCodePaneSession();
+            var ignoreTestAnnotations = _mousedOverTestMethod.Declaration.Annotations
+                .Where(pta => pta.Annotation is IgnoreTestAnnotation);
+
+            foreach (var ignoreTestAnnotation in ignoreTestAnnotations)
+            {
+                AnnotationUpdater.RemoveAnnotation(rewriteSession, ignoreTestAnnotation);
+            }
+
+            rewriteSession.TryRewrite();
         }
 
         private void ExecuteCopyResultsCommand(object parameter)
@@ -231,7 +408,7 @@ namespace Rubberduck.UI.UnitTesting
 
             var title = string.Format($"Rubberduck Test Results - {DateTime.Now.ToString(CultureInfo.InvariantCulture)}");
 
-            //var textResults = title + Environment.NewLine + string.Join("", _results.Select(result => result.ToString() + Environment.NewLine).ToArray());
+            var textResults = title + Environment.NewLine + string.Join(string.Empty, aResults.Select(result => result.ToString() + Environment.NewLine).ToArray());
             var csvResults = ExportFormatter.Csv(aResults, title, columnInfos);
             var htmlResults = ExportFormatter.HtmlClipboardFragment(aResults, title, columnInfos);
             var rtfResults = ExportFormatter.RTF(aResults, title);
@@ -243,34 +420,13 @@ namespace Rubberduck.UI.UnitTesting
                 _clipboard.AppendString(DataFormats.Rtf, rtfResults);
                 _clipboard.AppendString(DataFormats.Html, htmlResults);
                 _clipboard.AppendString(DataFormats.CommaSeparatedValue, csvResults);
-                //_clipboard.AppendString(DataFormats.UnicodeText, textResults);
+                _clipboard.AppendString(DataFormats.UnicodeText, textResults);
 
                 _clipboard.Flush();
             }
         }
 
-        private void ExecuteRunSelectedCategoryTestsCommand(object obj)
-        {
-            if (SelectedTest == null)
-            {
-                return;
-            }
-            Model.IsBusy = true;
-            _testEngine.Run(Model.Tests.Where(test => test.Method.Category.Equals(SelectedTest.Method.Category))
-                .Select(t => t.Method));
-            Model.IsBusy = false;
-        }
-
-        private bool CanExecuteRunSelectedCategoryTestsCommand(object obj)
-        {
-            if (Model.IsBusy || SelectedItem == null)
-            {
-                return false;
-            }
-
-            return ((TestMethod) SelectedItem).Category.Name != string.Empty;
-        }
-
+        // TODO - FIXME
         //KEEP THIS, AS IT MAKES FOR THE BASIS OF A USEFUL *SUMMARY* REPORT
         //private void ExecuteCopyResultsCommand(object parameter)
         //{
@@ -289,8 +445,20 @@ namespace Rubberduck.UI.UnitTesting
         //    _clipboard.Write(text);
         //}
 
+        private void OpenSettings(object param)
+        {
+            using (var window = _settingsFormFactory.Create(SettingsViews.UnitTestSettings))
+            {
+                window.ShowDialog();
+                _settingsFormFactory.Release(window);
+            }
+        }
+
+        #endregion
+
         public void Dispose()
         {
+            Model.TestCompleted -= HandleTestCompletion;
             Model.Dispose();
         }
     }

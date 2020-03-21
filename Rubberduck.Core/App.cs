@@ -9,20 +9,22 @@ using Rubberduck.UI.Command.MenuItems;
 using System;
 using System.Diagnostics;
 using System.Globalization;
+using System.Linq;
 using Rubberduck.Parsing.UIContext;
 using Rubberduck.Resources;
+using Rubberduck.Runtime;
 using Rubberduck.UI.Command;
-using Rubberduck.VBEditor.SafeComWrappers.Abstract;
 using Rubberduck.VBEditor.Utility;
 using Rubberduck.VersionCheck;
 using Application = System.Windows.Forms.Application;
+using Rubberduck.SettingsProvider;
 
 namespace Rubberduck
 {
     public sealed class App : IDisposable
     {
         private readonly IMessageBox _messageBox;
-        private readonly IGeneralConfigService _configService;
+        private readonly IConfigurationService<Configuration> _configService;
         private readonly IAppMenu _appMenus;
         private readonly IRubberduckHooks _hooks;
         private readonly IVersionCheck _version;
@@ -32,9 +34,8 @@ namespace Rubberduck
         
         private Configuration _config;
 
-        public App(IVBE vbe, 
-            IMessageBox messageBox,
-            IGeneralConfigService configService,
+        public App(IMessageBox messageBox,
+            IConfigurationService<Configuration> configService,
             IAppMenu appMenus,
             IRubberduckHooks hooks,
             IVersionCheck version,
@@ -54,7 +55,7 @@ namespace Rubberduck
 
         private void _configService_SettingsChanged(object sender, ConfigurationChangedEventArgs e)
         {
-            _config = _configService.LoadConfiguration();
+            _config = _configService.Read();
             _hooks.HookHotkeys();
             UpdateLoggingLevel();
 
@@ -120,7 +121,7 @@ namespace Rubberduck
             }
 
             _config.UserSettings.GeneralSettings.MinimumLogLevel = LogLevel.Off.Ordinal;
-            _configService.SaveConfiguration(_config);
+            _configService.Save(_config);
         }
 
         public void Startup()
@@ -160,7 +161,7 @@ namespace Rubberduck
 
         private void ApplyCultureConfig()
         {
-            _config = _configService.LoadConfiguration();
+            _config = _configService.Read();
 
             var currentCulture = Resources.RubberduckUI.Culture;
             try
@@ -176,30 +177,28 @@ namespace Rubberduck
                 // not accessing resources here, because setting resource culture literally just failed.
                 _messageBox.NotifyWarn(exception.Message, "Rubberduck");
                 _config.UserSettings.GeneralSettings.Language.Code = currentCulture.Name;
-                _configService.SaveConfiguration(_config);
+                _configService.Save(_config);
             }
         }
 
         private static void LocalizeResources(CultureInfo culture)
         {
-            //TODO: this method needs something better - maybe use reflection to discover all resourcees
-            //      to set culture for all resources files?
-            Resources.RubberduckUI.Culture = culture;
-            Resources.About.AboutUI.Culture = culture;
-            Resources.Inspections.InspectionInfo.Culture = culture;
-            Resources.Inspections.InspectionNames.Culture = culture;
-            Resources.Inspections.InspectionResults.Culture = culture;
-            Resources.Inspections.InspectionsUI.Culture = culture;
-            Resources.Inspections.QuickFixes.Culture = culture;
-            Resources.Menus.RubberduckMenus.Culture = culture;
-            Resources.RegexAssistant.RegexAssistantUI.Culture = culture;
-            Resources.Settings.SettingsUI.Culture = culture;
-            Resources.Settings.ToDoExplorerPage.Culture = culture;
-            Resources.Settings.UnitTestingPage.Culture = culture;
-            Resources.ToDoExplorer.ToDoExplorerUI.Culture = culture;
-            Resources.UnitTesting.AssertMessages.Culture = culture;
-            Resources.UnitTesting.TestExplorer.Culture = culture;
-            Resources.Templates.Culture = culture;
+            var localizers = AppDomain.CurrentDomain.GetAssemblies()
+                .SingleOrDefault(assembly => assembly.GetName().Name == "Rubberduck.Resources")
+                ?.DefinedTypes.SelectMany(type => type.DeclaredProperties.Where(prop =>
+                    prop.CanWrite && prop.Name.Equals("Culture") && prop.PropertyType == typeof(CultureInfo) &&
+                    (prop.SetMethod?.IsStatic ?? false)));
+
+            if (localizers == null)
+            {
+                return;
+            }
+
+            var args = new object[] { culture };
+            foreach (var localizer in localizers)
+            {
+                localizer.SetMethod.Invoke(null, args);
+            }
         }
 
         private void CheckForLegacyIndenterSettings()
@@ -218,7 +217,7 @@ namespace Rubberduck
                     _config.UserSettings.IndenterSettings.LoadLegacyFromRegistry();
                 }
                 _config.UserSettings.GeneralSettings.IsSmartIndenterPrompted = true;
-                _configService.SaveConfiguration(_config);
+                _configService.Save(_config);
             }
             catch 
             {
@@ -230,14 +229,26 @@ namespace Rubberduck
         {
             var version = _version.CurrentVersion;
             GlobalDiagnosticsContext.Set("RubberduckVersion", version.ToString());
+
             var headers = new List<string>
             {
                 $"\r\n\tRubberduck version {version} loading:",
-                $"\tOperating System: {Environment.OSVersion.VersionString} {(Environment.Is64BitOperatingSystem ? "x64" : "x86")}",
-                $"\tHost Product: {Application.ProductName} {(Environment.Is64BitProcess ? "x64" : "x86")}",
-                $"\tHost Version: {Application.ProductVersion}",
-                $"\tHost Executable: {Path.GetFileName(Application.ExecutablePath).ToUpper()}", // .ToUpper() used to convert ExceL.EXE -> EXCEL.EXE
+                $"\tOperating System: {Environment.OSVersion.VersionString} {(Environment.Is64BitOperatingSystem ? "x64" : "x86")}"
             };
+            try
+            {
+                headers.AddRange(new []
+                {
+                    $"\tHost Product: {Application.ProductName} {(Environment.Is64BitProcess ? "x64" : "x86")}",
+                    $"\tHost Version: {Application.ProductVersion}",
+                    $"\tHost Executable: {Path.GetFileName(Application.ExecutablePath).ToUpper()}", // .ToUpper() used to convert ExceL.EXE -> EXCEL.EXE
+                });
+            }
+            catch
+            {
+                headers.Add("\tHost could not be determined.");
+            }
+
             LogLevelHelper.SetDebugInfo(string.Join(Environment.NewLine, headers));
         }
 

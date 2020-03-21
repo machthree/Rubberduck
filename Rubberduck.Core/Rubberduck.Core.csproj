@@ -5,14 +5,15 @@
     <AssemblyName>Rubberduck.Core</AssemblyName>
     <Title>Rubberduck.Core</Title>
     <Product>Rubberduck.Core</Product>
-    <Copyright>Copyright © 2014-2018</Copyright>
+    <Copyright>Copyright © 2014-2019</Copyright>
     <ProjectGuid>{A1587EAC-7B54-407E-853F-4C7493D0323E}</ProjectGuid>
     <DocumentationFile>bin\Debug\Rubberduck.Core.xml</DocumentationFile>
     <!-- Disable "Missing XML documentation" warning (CS1591) -->
     <DisabledWarnings>$(DisabledWarnings);1591</DisabledWarnings>
     <ApplicationIcon>Ducky.ico</ApplicationIcon>
     <!-- Give a fixed version to not blow XAML generated code to smithereens -->
-    <AssemblyVersion>2.3.0</AssemblyVersion>
+    <!-- This also fixes "Input string was not in the correct format" error message when referring to the current assembly in an XAML-Namespace -->
+    <AssemblyVersion>2.5.0</AssemblyVersion>
   </PropertyGroup>
   <Import Project="..\RubberduckBaseProject.csproj" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'DebugAccess|AnyCPU'">
@@ -22,13 +23,19 @@
     <DocumentationFile>bin\Debug\Rubberduck.XML</DocumentationFile>
     <DebugType>full</DebugType>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <WarningsAsErrors>NU1605; CS1591</WarningsAsErrors>
+    <NoWarn>1701;1702;;1591;4011;1001;1591</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Infralution.Localization.Wpf">
       <HintPath>..\libs\Infralution.Localization.Wpf.dll</HintPath>
     </Reference>
+    <Reference Include="mscorlib" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="PresentationFramework.Aero" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
@@ -36,7 +43,9 @@
     <Reference Include="WindowsFormsIntegration" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Rubberduck.CodeAnalysis\Rubberduck.CodeAnalysis.csproj" />
     <ProjectReference Include="..\Rubberduck.Interaction\Rubberduck.Interaction.csproj" />
+    <ProjectReference Include="..\Rubberduck.JunkDrawer\Rubberduck.JunkDrawer.csproj" />
     <ProjectReference Include="..\Rubberduck.Parsing\Rubberduck.Parsing.csproj" />
     <ProjectReference Include="..\Rubberduck.Refactorings\Rubberduck.Refactorings.csproj" />
     <ProjectReference Include="..\Rubberduck.RegexAssistant\Rubberduck.RegexAssistant.csproj" />
@@ -65,6 +74,7 @@
     <PackageReference Include="EasyHook">
       <Version>2.7.6684</Version>
     </PackageReference>
+    <PackageReference Include="gong-wpf-dragdrop" Version="1.1.0" />
     <PackageReference Include="HtmlAgilityPack">
       <Version>1.8.4</Version>
     </PackageReference>
@@ -81,17 +91,45 @@
       <Version>2.0.20525</Version>
     </PackageReference>
   </ItemGroup>
+
+  <!-- BEGIN WINDOWS FORMS WORKAROUND SECTION -->
   <ItemGroup>
-    <Compile Update="Properties\Settings.Designer.cs">
+    <Compile Update="**\*Window.cs" SubType="Form" />
+    <Compile Update="**\*Dialog.cs" SubType="Form" />
+    <Compile Update="**\SettingsForm.cs" SubType="Form" />
+    <Compile Update="**\SimpleListControl.cs" SubType="Form" />
+    <Compile Update="**\Splash.cs" SubType="Form" />
+    <Compile Update="**\*.Designer.cs">
+      <DependentUpon>$([System.String]::Copy('%(Filename)').Replace('.Designer', '')).cs</DependentUpon>
+    </Compile>
+    <EmbeddedResource Update="UI\**\*.resx">
+      <DependentUpon>%(Filename).cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Update="Properties\Settings.Designer.cs">
       <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
     <None Update="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+      <Generator>SettingsSingleFileGenerator</Generator>
     </None>
   </ItemGroup>
+  <!-- END WINDOWS FORMS WORKAROUND SECTION -->
+
 </Project>

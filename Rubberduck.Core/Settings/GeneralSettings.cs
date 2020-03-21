@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Linq;
 using System.Xml.Serialization;
 using Rubberduck.Common;
+using Rubberduck.Resources;
 
 namespace Rubberduck.Settings
 {
@@ -12,22 +13,38 @@ namespace Rubberduck.Settings
         DisplayLanguageSetting Language { get; set; }
         bool CanShowSplash { get; set; }
         bool CanCheckVersion { get; set; }
+        bool IncludePreRelease { get; set; }
         bool CompileBeforeParse { get; set; }
         bool IsSmartIndenterPrompted { get; set; }
         bool IsAutoSaveEnabled { get; set; }
         int AutoSavePeriod { get; set; }
         bool UserEditedLogLevel { get; set; }
         int MinimumLogLevel { get; set; }
-        List<ExperimentalFeatures> EnableExperimentalFeatures { get; set; }
+        bool SetDpiUnaware { get; set; }
+        List<ExperimentalFeature> EnableExperimentalFeatures { get; set; }
     }
 
     [SettingsSerializeAs(SettingsSerializeAs.Xml)]
     [XmlType(AnonymousType = true)]
     public class GeneralSettings : IGeneralSettings, IEquatable<GeneralSettings>
     {
-        public DisplayLanguageSetting Language { get; set; }
+        private DisplayLanguageSetting _language = new DisplayLanguageSetting(Locales.DefaultCulture.Name);
+
+        public DisplayLanguageSetting Language
+        {
+            get => _language;
+            set
+            {
+                if (Locales.AvailableCultures.Exists(culture => culture.Name.Equals(value.Code, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _language = value;
+                }
+            }
+        }
+
         public bool CanShowSplash { get; set; }
         public bool CanCheckVersion { get; set; }
+        public bool IncludePreRelease { get; set; }
         public bool CompileBeforeParse { get; set; }
         public bool IsSmartIndenterPrompted { get; set; }
         public bool IsAutoSaveEnabled { get; set; }
@@ -56,7 +73,9 @@ namespace Rubberduck.Settings
             }
         }
 
-        public List<ExperimentalFeatures> EnableExperimentalFeatures { get; set; } = new List<ExperimentalFeatures>();
+        public bool SetDpiUnaware { get; set; }
+
+        public List<ExperimentalFeature> EnableExperimentalFeatures { get; set; } = new List<ExperimentalFeature>();
 
         public GeneralSettings()
         {
@@ -72,14 +91,16 @@ namespace Rubberduck.Settings
                    Language.Equals(other.Language) &&
                    CanShowSplash == other.CanShowSplash &&
                    CanCheckVersion == other.CanCheckVersion &&
+                   IncludePreRelease == other.IncludePreRelease &&
                    CompileBeforeParse == other.CompileBeforeParse &&
                    IsSmartIndenterPrompted == other.IsSmartIndenterPrompted &&
                    IsAutoSaveEnabled == other.IsAutoSaveEnabled &&
                    AutoSavePeriod == other.AutoSavePeriod &&
                    UserEditedLogLevel == other.UserEditedLogLevel &&
-                   MinimumLogLevel == other.MinimumLogLevel &&
-                   EnableExperimentalFeatures.All(a => other.EnableExperimentalFeatures.Contains(a)) &&
-                   EnableExperimentalFeatures.Count == other.EnableExperimentalFeatures.Count;
+                   MinimumLogLevel == other.MinimumLogLevel &&                   
+                   EnableExperimentalFeatures.Count == other.EnableExperimentalFeatures.Count &&
+                   EnableExperimentalFeatures.All(other.EnableExperimentalFeatures.Contains) &&
+                   SetDpiUnaware == other.SetDpiUnaware;
         }
     }
 }

@@ -241,11 +241,12 @@ namespace Rubberduck.Parsing.VBA.ComReferenceLoading
             _projectIdsByFilePathAndProjectName.Clear();
 
             var projects = _projectsProvider.Projects();
-            foreach (var (projectId, project) in projects)
+            var lockedProjects = _projectsProvider.LockedProjects();
+            foreach (var (projectId, project) in projects.Concat(lockedProjects))
             {
                 if (TryGetFullPath(project, out var fullPath))
                 {
-                    var projectName = project.Name;
+                    var projectName = !string.IsNullOrEmpty(fullPath) ? project.Name : $"UnsavedProject{projectId}";
                     _projectIdsByFilePathAndProjectName.Add((projectName, fullPath), projectId);
                 }
             }
@@ -364,23 +365,13 @@ namespace Rubberduck.Parsing.VBA.ComReferenceLoading
             {
                 _unloadedCOMReferences.Add(referencedProjectId);
 
-                var projectQMN = ProjectQMNFromBuildInProjectId(referencedProjectId);
-                _state.RemoveBuiltInDeclarations(projectQMN);
+                _state.RemoveBuiltInDeclarations(referencedProjectId);
             }
         }
 
         private bool IsUserProjectProjectId(string projectId)
         {
             return _projectIdsByFilePathAndProjectName.Values.Contains(projectId);
-        }
-
-        private QualifiedModuleName ProjectQMNFromBuildInProjectId(string projectId)
-        {
-            return _state.DeclarationFinder
-                .BuiltInDeclarations(DeclarationType.Project)
-                .First(declaration => declaration.ProjectId == projectId)
-                .QualifiedModuleName;
-
         }
     }
 }

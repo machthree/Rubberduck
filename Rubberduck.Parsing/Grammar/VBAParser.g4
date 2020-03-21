@@ -19,9 +19,11 @@
 
 parser grammar VBAParser;
 
-options { tokenVocab = VBALexer; }
-
-@header { using System.Text.RegularExpressions; }
+options {
+    tokenVocab = VBALexer;
+    superClass = VBABaseParser;
+    contextSuperClass = VBABaseParserRuleContext;
+ }
 
 startRule : module EOF;
 
@@ -57,12 +59,17 @@ moduleConfig :
 
 moduleConfigProperty :
     BEGINPROPERTY whiteSpace unrestrictedIdentifier (LPAREN numberLiteral RPAREN)? (whiteSpace GUIDLITERAL)? endOfStatement
-        (moduleConfigProperty | moduleConfigElement)+
+        (moduleConfigProperty | moduleConfigElement)*
     ENDPROPERTY endOfStatement
 ;
 
 moduleConfigElement :
-    (unrestrictedIdentifier | lExpression) whiteSpace? EQ whiteSpace? (shortcut | resource | expression) endOfStatement
+    (unrestrictedIdentifier | lExpression) whiteSpace? EQ whiteSpace? (shortcut | resource | expression | germanStyleFloatingPointNumber) endOfStatement
+;
+
+germanStyleFloatingPointNumber : 
+    INTEGERLITERAL COMMA INTEGERLITERAL
+    | COMMA INTEGERLITERAL
 ;
 
 shortcut :
@@ -165,6 +172,7 @@ mainBlockStmt :
     | circleSpecialForm
     | scaleSpecialForm
     | pSetSpecialForm
+    | unqualifiedObjectPrintStmt
     | callStmt
     | nameStmt
 ;
@@ -179,7 +187,6 @@ fileStmt :
     | unlockStmt
     | lineInputStmt
     | widthStmt
-    | debugPrintStmt
     | printStmt
     | writeStmt
     | inputStmt
@@ -251,15 +258,10 @@ lineWidth : expression;
 
 
 // 5.4.5.8   Print Statement
-// Debug.Print is special because it seems to take an output list as argument.
-// To shield the rest of the parsing/binding from this peculiarity, we treat it as a statement
-// and let the resolver handle it.
-debugPrintStmt : debugPrint (whiteSpace outputList)?;
-// We split it up into separate rules so that we have context classes generated that can be used in declarations/references.
-debugPrint : debugModule whiteSpace? DOT whiteSpace? debugPrintSub;
-debugModule : DEBUG;
-debugPrintSub : PRINT;
-printStmt : PRINT whiteSpace markedFileNumber whiteSpace? COMMA (whiteSpace? outputList)?;
+//The unqualifiedObjectPrintStmt is an invocation of the Print member of the enclosing form or report, which also takes an output list as argument.
+printMethod : PRINT;
+printStmt : printMethod whiteSpace markedFileNumber whiteSpace? COMMA (whiteSpace? outputList)?;
+unqualifiedObjectPrintStmt : printMethod (whiteSpace outputList)?;
 
 // 5.4.5.8.1 Output Lists
 outputList : outputItem (whiteSpace? outputItem)*;
@@ -302,7 +304,7 @@ variable : expression;
 constStmt : (visibility whiteSpace)? CONST whiteSpace constSubStmt (whiteSpace? COMMA whiteSpace? constSubStmt)*;
 constSubStmt : identifier (whiteSpace asTypeClause)? whiteSpace? EQ whiteSpace? expression;
 
-declareStmt : (visibility whiteSpace)? DECLARE whiteSpace (PTRSAFE whiteSpace)? (FUNCTION | SUB) whiteSpace identifier whiteSpace (CDECL whiteSpace)? LIB whiteSpace STRINGLITERAL (whiteSpace ALIAS whiteSpace STRINGLITERAL)? (whiteSpace? argList)? (whiteSpace asTypeClause)?;
+declareStmt : (visibility whiteSpace)? DECLARE whiteSpace (PTRSAFE whiteSpace)? (FUNCTION | SUB) whiteSpace identifier whiteSpace (CDECL whiteSpace)? LIB whiteSpace STRINGLITERAL (whiteSpace ALIAS whiteSpace STRINGLITERAL)? (whiteSpace? argList)? (whiteSpace asTypeClause)? (endOfLine attributeStmt)*;
 
 argList : LPAREN (whiteSpace? arg (whiteSpace? COMMA whiteSpace? arg)*)? whiteSpace? RPAREN;
 
@@ -321,14 +323,14 @@ defType :
 // singleLetter must appear at the end to prevent premature bailout
 letterSpec : universalLetterRange | letterRange | singleLetter;
 
-singleLetter : {_input.Lt(1).Text.Length == 1 && Regex.Match(_input.Lt(1).Text, @"[a-zA-Z]").Success}? IDENTIFIER;
+singleLetter : {MatchesRegex(TextOf(TokenAtRelativePosition(1)),"^[a-zA-Z]$")}? IDENTIFIER;
 
 // We make a separate universalLetterRange rule because it is treated specially in VBA. This makes it easy for users of the parser
 // to identify this case. Quoting MS VBAL:
 // "A <universal-letter-range> defines a single implicit declared type for every <IDENTIFIER> within 
 // a module, even those with a first character that would otherwise fall outside this range if it was 
 // interpreted as a <letter-range> from A-Z.""
-universalLetterRange : {_input.Lt(1).Text.Equals("A") && _input.Lt(3).Text.Equals("Z")}? IDENTIFIER MINUS IDENTIFIER;
+universalLetterRange : {EqualsString(TextOf(TokenAtRelativePosition(1)),"A") && EqualsString(TextOf(TokenAtRelativePosition(3)),"Z")}? IDENTIFIER MINUS IDENTIFIER;
  
 letterRange : singleLetter MINUS singleLetter;
 
@@ -414,8 +416,9 @@ elseBlock :
 // 5.4.2.9 Single-line If Statement
 singleLineIfStmt : ifWithNonEmptyThen | ifWithEmptyThen;
 ifWithNonEmptyThen : IF whiteSpace? booleanExpression whiteSpace? THEN whiteSpace? listOrLabel (whiteSpace singleLineElseClause)?;
-ifWithEmptyThen : IF whiteSpace? booleanExpression whiteSpace? THEN endOfStatement? whiteSpace? singleLineElseClause;
+ifWithEmptyThen : IF whiteSpace? booleanExpression whiteSpace? THEN whiteSpace? emptyThenStatement? singleLineElseClause;
 singleLineElseClause : ELSE whiteSpace? listOrLabel?;
+
 // lineNumberLabel should actually be "statement-label" according to MS VBAL but they only allow lineNumberLabels:
 // A <statement-label> that occurs as the first element of a <list-or-label> element has the effect 
 // as if the <statement-label> was replaced with a <goto-statement> containing the same 
@@ -425,7 +428,9 @@ listOrLabel :
     lineNumberLabel (whiteSpace? COLON whiteSpace? sameLineStatement?)*
     | (COLON whiteSpace?)? sameLineStatement (whiteSpace? COLON whiteSpace? sameLineStatement?)*
 ;
+
 sameLineStatement : mainBlockStmt;
+emptyThenStatement : (COLON whiteSpace?)+;
 booleanExpression : expression;
 
 implementsStmt : IMPLEMENTS whiteSpace expression;
@@ -549,9 +554,9 @@ upperBound : constantExpression;
 
 constantExpression : expression;
 
-variableStmt : (DIM | STATIC | visibility) whiteSpace (WITHEVENTS whiteSpace)? variableListStmt;
+variableStmt : (DIM | STATIC | visibility) whiteSpace variableListStmt;
 variableListStmt : variableSubStmt (whiteSpace? COMMA whiteSpace? variableSubStmt)*;
-variableSubStmt : identifier (whiteSpace? LPAREN whiteSpace? (subscripts whiteSpace?)? RPAREN)? (whiteSpace asTypeClause)?;
+variableSubStmt : (WITHEVENTS whiteSpace)? identifier (whiteSpace? LPAREN whiteSpace? (subscripts whiteSpace?)? RPAREN)? (whiteSpace asTypeClause)?;
 
 whileWendStmt : 
     WHILE whiteSpace expression endOfStatement 
@@ -566,20 +571,34 @@ withStmt :
 ;
 
 // Special forms with special syntax, only available in VBA reports or VB6 forms and pictureboxes.
-lineSpecialForm : expression whiteSpace ((STEP whiteSpace?)? tuple)? MINUS (STEP whiteSpace?)? tuple whiteSpace? (COMMA whiteSpace? expression)? whiteSpace? (COMMA whiteSpace? lineSpecialFormOption)?;
+// lineSpecialFormOption is required if expression is missing
+lineSpecialForm : expression whiteSpace ((STEP whiteSpace?)? tuple)?
+    whiteSpace? MINUS whiteSpace?
+	(STEP whiteSpace?)? tuple whiteSpace?
+	(COMMA whiteSpace? expression? whiteSpace?)?
+	(COMMA whiteSpace? lineSpecialFormOption)?
+;
 circleSpecialForm : (expression whiteSpace? DOT whiteSpace?)? CIRCLE whiteSpace (STEP whiteSpace?)? tuple (whiteSpace? COMMA whiteSpace? expression)+;
 scaleSpecialForm : (expression whiteSpace? DOT whiteSpace?)? SCALE whiteSpace tuple whiteSpace? MINUS whiteSpace? tuple;
 pSetSpecialForm : (expression whiteSpace? DOT whiteSpace?)? PSET (whiteSpace STEP)? whiteSpace? tuple whiteSpace? (COMMA whiteSpace? expression)?;
 tuple : LPAREN whiteSpace? expression whiteSpace? COMMA whiteSpace? expression whiteSpace? RPAREN;
-lineSpecialFormOption : {_input.Lt(1).Text.ToLower().Equals("b") || _input.Lt(1).Text.ToLower().Equals("bf")}? unrestrictedIdentifier;
+lineSpecialFormOption : {EqualsStringIgnoringCase(TextOf(TokenAtRelativePosition(1)),"b","bf")}? unrestrictedIdentifier;
 
 subscripts : subscript (whiteSpace? COMMA whiteSpace? subscript)*;
 
 subscript : (expression whiteSpace TO whiteSpace)? expression;
 
 unrestrictedIdentifier : identifier | statementKeyword | markerKeyword;
-legalLabelIdentifier : { !(new[]{DOEVENTS,END,CLOSE,ELSE,LOOP,NEXT,RANDOMIZE,REM,RESUME,RETURN,STOP,WEND}).Contains(_input.La(1))}? identifier | markerKeyword;
-identifier : typedIdentifier | untypedIdentifier;
+legalLabelIdentifier : { !IsTokenType(TokenTypeAtRelativePosition(1),DOEVENTS,END,CLOSE,ELSE,LOOP,NEXT,RANDOMIZE,REM,RESUME,RETURN,STOP,WEND)}? identifier | markerKeyword;
+//The predicate in the following rule has been introduced to lessen the problem that VBA uses the same characters used as type hints in other syntactical constructs, 
+//e.g. in the bang notation (see withDictionaryAccessExpr). Generally, it is not legal to have an identifier or opening bracket follow immediately after a type hint.
+//The first part of the predicate tries to exclude these two situations. Unfortunately, predicates have to be at the start of a rule. So, an assumption about the number 
+//of tokens in the identifier is made. All untypedIdentifers not a foreignNames consist of exactly one token and a typedIdentifier is an untyped one followed by a typeHint,
+//again a single token. So, in the majority of situations, the third token is the token following the potential type hint. 
+//For foreignNames, no assumption can be made because they consist of a pair of brackets containing arbitrarily many tokens. 
+//That is why the second part of the predicate looks at the first character in order to determine whether the identifier is a foreignName. 
+identifier : {!IsTokenType(TokenTypeAtRelativePosition(3),IDENTIFIER,L_SQUARE_BRACKET) || IsTokenType(TokenTypeAtRelativePosition(1),L_SQUARE_BRACKET)}? typedIdentifier
+             | untypedIdentifier;
 untypedIdentifier : identifierValue;
 typedIdentifier : untypedIdentifier typeHint;
 identifierValue : IDENTIFIER | keyword | foreignName;
@@ -606,13 +625,16 @@ complexType :
 fieldLength : MULT whiteSpace? (numberLiteral | identifierValue);
 
 //Statement labels can only appear at the start of a line.
-statementLabelDefinition : {_input.La(-1) == NEWLINE || _input.La(-1) == LINE_CONTINUATION}? (combinedLabels | identifierStatementLabel | standaloneLineNumberLabel);
+statementLabelDefinition : {IsTokenType(TokenTypeAtRelativePosition(-1),NEWLINE,LINE_CONTINUATION)}? (combinedLabels | identifierStatementLabel | standaloneLineNumberLabel);
 identifierStatementLabel : legalLabelIdentifier whiteSpace? COLON;
 standaloneLineNumberLabel : 
     lineNumberLabel whiteSpace? COLON
     | lineNumberLabel;
 combinedLabels : lineNumberLabel whiteSpace identifierStatementLabel;
-lineNumberLabel : numberLiteral;
+// Technically, the negative numbers are illegal but VBE can prettify a
+// &HFFFFFFFF into a -1 which becomes a legal line number. Editing the same
+// line subsequently then breaks it. 
+lineNumberLabel : MINUS? numberLiteral; 
 
 numberLiteral : HEXLITERAL | OCTLITERAL | FLOATLITERAL | INTEGERLITERAL;
 
@@ -625,6 +647,7 @@ visibility : PRIVATE | PUBLIC | FRIEND | GLOBAL;
 // 5.6 Expressions
 expression :
     // Literal Expression has to come before lExpression, otherwise it'll be classified as simple name expression instead.
+    //The same holds for Built-in Type Expression.
     whiteSpace? LPAREN whiteSpace? expression whiteSpace? RPAREN                                    # parenthesizedExpr
     | TYPEOF whiteSpace expression                                                                  # typeofexpr // To make the grammar SLL, the type-of-is-expression is actually the child of an IS relational op.
     | HASH expression                                                                               # markedFileNumberExpr // Added to support special forms such as Input(file1, #file1)
@@ -644,8 +667,8 @@ expression :
     | expression whiteSpace? EQV whiteSpace? expression                                             # logicalEqvOp
     | expression whiteSpace? IMP whiteSpace? expression                                             # logicalImpOp
     | literalExpression                                                                             # literalExpr
+    | {!IsTokenType(TokenTypeAtRelativePosition(2),LPAREN)}? builtInType                            # builtInTypeExpr
     | lExpression                                                                                   # lExpr
-    | builtInType                                                                                   # builtInTypeExpr
 ;
 
 // 5.6.5 Literal Expressions
@@ -663,14 +686,18 @@ variantLiteralIdentifier : EMPTY | NULL;
 
 lExpression :
     lExpression LPAREN whiteSpace? argumentList? whiteSpace? RPAREN                                                 # indexExpr
+    | lExpression mandatoryLineContinuation? DOT mandatoryLineContinuation? printMethod (whiteSpace outputList)?    # objectPrintExpr
     | lExpression mandatoryLineContinuation? DOT mandatoryLineContinuation? unrestrictedIdentifier                  # memberAccessExpr
-    | lExpression mandatoryLineContinuation? EXCLAMATIONPOINT mandatoryLineContinuation? unrestrictedIdentifier     # dictionaryAccessExpr
+    | lExpression mandatoryLineContinuation? dictionaryAccess mandatoryLineContinuation? unrestrictedIdentifier     # dictionaryAccessExpr
     | ME                                                                                                            # instanceExpr
     | identifier                                                                                                    # simpleNameExpr
     | DOT mandatoryLineContinuation? unrestrictedIdentifier                                                         # withMemberAccessExpr
-    | EXCLAMATIONPOINT mandatoryLineContinuation? unrestrictedIdentifier                                            # withDictionaryAccessExpr
+    | dictionaryAccess mandatoryLineContinuation? unrestrictedIdentifier                                            # withDictionaryAccessExpr
     | lExpression mandatoryLineContinuation whiteSpace? LPAREN whiteSpace? argumentList? whiteSpace? RPAREN         # whitespaceIndexExpr
 ;
+
+//This is a hack to allow attaching identifier references for default members to the exclaramtion mark.
+dictionaryAccess : EXCLAMATIONPOINT;
 
 // 3.3.5.3 Special Identifier Forms
 builtInType : 
@@ -898,7 +925,7 @@ statementKeyword :
 ;
 
 endOfLine :
-    whiteSpace? NEWLINE whiteSpace?
+    whiteSpace? NEWLINE
     | whiteSpace? commentOrAnnotation
 ;
 
@@ -929,11 +956,12 @@ annotationList : SINGLEQUOTE (AT annotation)+ (COLON commentBody)?;
 annotation : annotationName annotationArgList? whiteSpace?;
 annotationName : unrestrictedIdentifier;
 annotationArgList : 
-    whiteSpace annotationArg
-    | whiteSpace annotationArg (whiteSpace? COMMA whiteSpace? annotationArg)+
+    whiteSpace? LPAREN whiteSpace? annotationArg whiteSpace? RPAREN
     | whiteSpace? LPAREN whiteSpace? RPAREN
-    | whiteSpace? LPAREN whiteSpace? annotationArg whiteSpace? RPAREN
-    | whiteSpace? LPAREN annotationArg (whiteSpace? COMMA whiteSpace? annotationArg)+ whiteSpace? RPAREN;
+    | whiteSpace? LPAREN annotationArg (whiteSpace? COMMA whiteSpace? annotationArg)+ whiteSpace? RPAREN
+    | whiteSpace annotationArg
+    | whiteSpace annotationArg (whiteSpace? COMMA whiteSpace? annotationArg)+
+;
 annotationArg : expression;
 
 mandatoryLineContinuation : LINE_CONTINUATION WS*;

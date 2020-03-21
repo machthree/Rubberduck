@@ -8,7 +8,7 @@ using VB = Microsoft.Vbe.Interop.VB6;
 // ReSharper disable once CheckNamespace - Special dispensation due to conflicting file vs namespace priorities
 namespace Rubberduck.VBEditor.SafeComWrappers.VB6
 {
-    public class VBComponents : SafeEventedComWrapper<VB.VBComponents, VB._dispVBComponentsEvents>, IVBComponents, VB._dispVBComponentsEvents
+    public sealed class VBComponents : SafeEventedComWrapper<VB.VBComponents, VB._dispVBComponentsEvents>, IVBComponents, VB._dispVBComponentsEvents
     {
         public VBComponents(VB.VBComponents target, bool rewrapping = false) 
             : base(target, rewrapping)
@@ -70,9 +70,10 @@ namespace Rubberduck.VBEditor.SafeComWrappers.VB6
             return IsWrappingNullReference ? 0 : HashCode.Compute(Target);
         }
 
-        public void ImportSourceFile(string path)
+        public IVBComponent ImportSourceFile(string path)
         {
-            throw new NotSupportedException("ImportSourceFile not supported in VB6");
+            //Since we have no special handling as in VBA, we just forward to Import.
+            return Import(path);
         }
 
         public void RemoveSafely(IVBComponent component)
@@ -98,6 +99,8 @@ namespace Rubberduck.VBEditor.SafeComWrappers.VB6
                     break;
             }
         }
+
+        protected override void Dispose(bool disposing) => base.Dispose(disposing);
 
         #region Events
 
@@ -155,7 +158,6 @@ namespace Rubberduck.VBEditor.SafeComWrappers.VB6
                 var handler = dispatched;
                 if (handler == null)
                 {
-                    component.Dispose();
                     return;
                 }
 

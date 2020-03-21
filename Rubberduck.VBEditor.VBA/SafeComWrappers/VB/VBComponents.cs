@@ -7,13 +7,16 @@ using System.Text;
 using Rubberduck.VBEditor.Events;
 using Rubberduck.VBEditor.Extensions;
 using Rubberduck.VBEditor.SafeComWrappers.Abstract;
+using Rubberduck.VBEditor.Utility;
 using VB = Microsoft.Vbe.Interop;
 
 // ReSharper disable once CheckNamespace - Special dispensation due to conflicting file vs namespace priorities
 namespace Rubberduck.VBEditor.SafeComWrappers.VBA
 {
-    public class VBComponents : SafeEventedComWrapper<VB.VBComponents, VB._dispVBComponentsEvents>, IVBComponents, VB._dispVBComponentsEvents
+    public sealed class VBComponents : SafeEventedComWrapper<VB.VBComponents, VB._dispVBComponentsEvents>, IVBComponents, VB._dispVBComponentsEvents
     {
+        private readonly IModuleNameFromFileExtractor _moduleNameFromFileExtractor = new ModuleNameFromFileExtractor();
+
         public VBComponents(VB.VBComponents target, bool rewrapping = false) 
             : base(target, rewrapping)
         {
@@ -74,21 +77,27 @@ namespace Rubberduck.VBEditor.SafeComWrappers.VBA
             return IsWrappingNullReference ? 0 : HashCode.Compute(Target);
         }
 
-        public void ImportSourceFile(string path)
+        public IVBComponent ImportSourceFile(string path)
         {
-            if (IsWrappingNullReference) { return; }
-
-            var ext = Path.GetExtension(path);
-            var name = Path.GetFileNameWithoutExtension(path);
-            if (!File.Exists(path))
+            if (IsWrappingNullReference)
             {
-                return;
+                return null;
             }
 
-            if (ext == ComponentTypeExtensions.DocClassExtension)
+            var ext = Path.GetExtension(path);
+            if (!File.Exists(path))
             {
-                IVBComponent component = null;
-                try {
+                return null;
+            }
+
+            switch (ext)
+            {
+                case ComponentTypeExtensions.FormBinaryExtension:
+                    return null;
+                case ComponentTypeExtensions.DocClassExtension:
+                {
+                    var name = _moduleNameFromFileExtractor.ModuleName(path);
+                    IVBComponent component = null;
                     try
                     {
                         component = this[name];
@@ -104,17 +113,14 @@ namespace Rubberduck.VBEditor.SafeComWrappers.VBA
                         codeModule.Clear();
                         codeModule.AddFromString(codeString);
                     }
+
+                    return component;
+
                 }
-                finally
+                case ComponentTypeExtensions.FormExtension:
                 {
-                    component?.Dispose();
-                }
-            }
-            else if (ext == ComponentTypeExtensions.FormExtension)
-            {
-                IVBComponent component = null;
-                try
-                {   
+                    var name = _moduleNameFromFileExtractor.ModuleName(path);
+                    IVBComponent component = null;
                     try
                     {
                         component = this[name];
@@ -142,15 +148,11 @@ namespace Rubberduck.VBEditor.SafeComWrappers.VBA
                         codeModule.Clear();
                         codeModule.AddFromString(correctCodeString);
                     }
+                    
+                    return component;
                 }
-                finally
-                {
-                    component?.Dispose();
-                }
-            }
-            else if (ext != ComponentTypeExtensions.FormBinaryExtension)
-            {
-                using(Import(path)){} //Nothing to do here, except properly disposing the wrapper returned from Import.
+                default:
+                    return Import(path);
             }
         }
 
@@ -177,6 +179,8 @@ namespace Rubberduck.VBEditor.SafeComWrappers.VBA
                     break;
             }
         }
+
+        protected override void Dispose(bool disposing) => base.Dispose(disposing);
 
         #region Events
 

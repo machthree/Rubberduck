@@ -1,63 +1,51 @@
 ﻿using System.Runtime.InteropServices;
-using Rubberduck.Parsing.Rewriter;
 using Rubberduck.Parsing.Symbols;
 using Rubberduck.Parsing.VBA;
 using Rubberduck.Refactorings.EncapsulateField;
-using Rubberduck.SmartIndenter;
-using Rubberduck.UI.Refactorings.EncapsulateField;
-using Rubberduck.VBEditor.SafeComWrappers.Abstract;
+using Rubberduck.UI.Command.Refactorings.Notifiers;
+using Rubberduck.VBEditor.Utility;
 
 namespace Rubberduck.UI.Command.Refactorings
 {
     [ComVisible(false)]
-    public class RefactorEncapsulateFieldCommand : RefactorCommandBase
+    public class RefactorEncapsulateFieldCommand : RefactorCodePaneCommandBase
     {
         private readonly RubberduckParserState _state;
-        private readonly IRewritingManager _rewritingManager;
-        private readonly Indenter _indenter;
+        private readonly ISelectedDeclarationProvider _selectedDeclarationProvider;
 
-        public RefactorEncapsulateFieldCommand(IVBE vbe, RubberduckParserState state, Indenter indenter, IRewritingManager rewritingManager)
-            : base(vbe)
+        public RefactorEncapsulateFieldCommand(
+            EncapsulateFieldRefactoring refactoring, 
+            EncapsulateFieldFailedNotifier encapsulateFieldFailedNotifier, 
+            RubberduckParserState state, 
+            ISelectionProvider selectionProvider,
+            ISelectedDeclarationProvider selectedDeclarationProvider)
+            : base(refactoring, encapsulateFieldFailedNotifier, selectionProvider, state)
         {
             _state = state;
-            _rewritingManager = rewritingManager;
-            _indenter = indenter;
+            _selectedDeclarationProvider = selectedDeclarationProvider;
+
+            AddToCanExecuteEvaluation(SpecializedEvaluateCanExecute);
         }
 
-        protected override bool EvaluateCanExecute(object parameter)
+        private bool SpecializedEvaluateCanExecute(object parameter)
         {
-            Declaration target;
-            using (var pane = Vbe.ActiveCodePane)
-            {
-                if (pane == null || _state.Status != ParserState.Ready)
-                {
-                    return false;
-                }
+            var target = GetTarget();
 
-                target = _state.FindSelectedDeclaration(pane);
-            }
             return target != null
-                && target.DeclarationType == DeclarationType.Variable
-                && !target.ParentScopeDeclaration.DeclarationType.HasFlag(DeclarationType.Member)
                 && !_state.IsNewOrModified(target.QualifiedModuleName);
         }
 
-        protected override void OnExecute(object parameter)
+        private Declaration GetTarget()
         {
-            using(var activePane = Vbe.ActiveCodePane)
+            var selectedDeclaration = _selectedDeclarationProvider.SelectedDeclaration();
+            if (selectedDeclaration == null
+                || selectedDeclaration.DeclarationType != DeclarationType.Variable
+                || selectedDeclaration.ParentScopeDeclaration.DeclarationType.HasFlag(DeclarationType.Member))
             {
-                if (activePane == null || activePane.IsWrappingNullReference)
-                {
-                    return;
-                }
+                return null;
             }
 
-            using (var view = new EncapsulateFieldDialog(new EncapsulateFieldViewModel(_state, _indenter)))
-            {
-                var factory = new EncapsulateFieldPresenterFactory(Vbe, _state, view);
-                var refactoring = new EncapsulateFieldRefactoring(Vbe, _indenter, factory, _rewritingManager);
-                refactoring.Refactor();
-            }
+            return selectedDeclaration;
         }
     }
 }

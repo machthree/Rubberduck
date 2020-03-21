@@ -34,9 +34,32 @@ namespace Rubberduck.Parsing.Binding
                   parent,
                   expression,
                   null,
-                  Identifier.GetName(expression.unrestrictedIdentifier()),
+                  expression.unrestrictedIdentifier().GetText(),
                   statementContext,
                   unrestrictedNameContext)
+        {
+            _lExpressionBinding = lExpressionBinding;
+        }
+
+        public MemberAccessDefaultBinding(
+            DeclarationFinder declarationFinder,
+            Declaration project,
+            Declaration module,
+            Declaration parent,
+            VBAParser.ObjectPrintExprContext expression,
+            IExpressionBinding lExpressionBinding,
+            StatementResolutionContext statementContext,
+            ParserRuleContext unrestrictedNameContext)
+            : this(
+                declarationFinder,
+                project,
+                module,
+                parent,
+                expression,
+                null,
+                Tokens.Print,
+                statementContext,
+                unrestrictedNameContext)
         {
             _lExpressionBinding = lExpressionBinding;
         }
@@ -99,7 +122,7 @@ namespace Rubberduck.Parsing.Binding
             {
                 return boundExpression;
             }
-            return CreateFailedExpression(_lExpression);
+            return CreateFailedExpression(_lExpression, _context);
         }
 
         private IBoundExpression ResolveLExpressionIsVariablePropertyOrFunction()
@@ -144,7 +167,7 @@ namespace Rubberduck.Parsing.Binding
             {
                 return null;
             }
-            if (referencedType.DeclarationType != DeclarationType.UserDefinedType && referencedType.DeclarationType != DeclarationType.ClassModule)
+            if (referencedType.DeclarationType != DeclarationType.UserDefinedType && !referencedType.DeclarationType.HasFlag(DeclarationType.ClassModule))
             {
                 return null;
             }
@@ -174,12 +197,12 @@ namespace Rubberduck.Parsing.Binding
                 return new MemberAccessExpression(subroutine, ExpressionClassification.Subroutine, _context, _unrestrictedNameContext, _lExpression);
             }
             // Assume that no match = failure on our side.
-            return CreateFailedExpression(_lExpression);
+            return CreateFailedExpression(_lExpression, _context);
         }
 
-        private IBoundExpression CreateFailedExpression(IBoundExpression expression)
+        private IBoundExpression CreateFailedExpression(IBoundExpression expression, ParserRuleContext context)
         {
-            var failedExpr = new ResolutionFailedExpression();
+            var failedExpr = new ResolutionFailedExpression(context);
             failedExpr.AddSuccessfullyResolvedExpression(expression);
             return failedExpr;
         }
@@ -378,7 +401,7 @@ namespace Rubberduck.Parsing.Binding
                     -   The member is a value. In this case, the member access expression is classified as a value with 
                         the same declared type as the member. 
              */
-            bool isDefaultInstanceVariableClass = _lExpression.Classification == ExpressionClassification.Type && _lExpression.ReferencedDeclaration.DeclarationType == DeclarationType.ClassModule && ((ClassModuleDeclaration)_lExpression.ReferencedDeclaration).HasDefaultInstanceVariable;
+            bool isDefaultInstanceVariableClass = _lExpression.Classification == ExpressionClassification.Type && _lExpression.ReferencedDeclaration is ClassModuleDeclaration classModule && classModule.HasDefaultInstanceVariable;
             if (_lExpression.Classification != ExpressionClassification.ProceduralModule && !isDefaultInstanceVariableClass)
             {
                 return null;

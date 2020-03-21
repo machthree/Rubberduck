@@ -28,7 +28,7 @@ namespace Rubberduck.UI
         private readonly IWindow _window;
         private readonly WindowSettings _settings;  //Storing this really doesn't matter - it's only checked on startup and never persisted.
 
-        protected DockableToolwindowPresenter(IVBE vbe, IAddIn addin, IDockableUserControl view, IConfigProvider<WindowSettings> settingsProvider)
+        protected DockableToolwindowPresenter(IVBE vbe, IAddIn addin, IDockableUserControl view, IConfigurationService<WindowSettings> settingsProvider)
         {
             _vbe = vbe;
             _addin = addin;
@@ -36,7 +36,7 @@ namespace Rubberduck.UI
             UserControl = view as UserControl;
             if (settingsProvider != null)
             {
-                _settings = settingsProvider.Create();
+                _settings = settingsProvider.Read();
             }
             _window = CreateToolWindow(view);
         }
@@ -108,11 +108,16 @@ namespace Rubberduck.UI
         public virtual void Show() => _window.IsVisible = true;
         public virtual void Hide() => _window.IsVisible = false;
 
-
-        private bool _isDisposed;
         public void Dispose()
         {
-            if (_isDisposed)
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private bool _isDisposed;
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_isDisposed || !disposing)
             {
                 return;
             }
@@ -120,11 +125,12 @@ namespace Rubberduck.UI
             Logger.Trace($"Disposing DockableWindowPresenter of type {this.GetType()}.");
 
             _window.Dispose();
-
+           
             _isDisposed = true;
         }
 
 #if DEBUG
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1063")] // only logging here.
         ~DockableToolwindowPresenter()
         {
             // destructor for tracking purposes only - do not suppress unless 

@@ -11,16 +11,18 @@ using Rubberduck.Resources.Inspections;
 using System.Globalization;
 using System;
 using Rubberduck.Resources.Settings;
+using Rubberduck.CodeAnalysis.Settings;
 
 namespace Rubberduck.UI.Settings
 {
-    public class InspectionSettingsViewModel : SettingsViewModelBase, ISettingsViewModel
+    public sealed class InspectionSettingsViewModel : SettingsViewModelBase<CodeInspectionSettings>, ISettingsViewModel<CodeInspectionSettings>
     {
-        public InspectionSettingsViewModel(Configuration config)
+        public InspectionSettingsViewModel(Configuration config, IConfigurationService<CodeInspectionSettings> service) 
+            : base(service)
         {
             InspectionSettings = new ListCollectionView(
                         config.UserSettings.CodeInspectionSettings.CodeInspections
-                                        .OrderBy(inspection => inspection.TypeLabel)
+                                        .OrderBy(inspection => inspection.InspectionType)
                                         .ThenBy(inspection => inspection.Description)
                                         .ToList());
 
@@ -29,8 +31,16 @@ namespace Rubberduck.UI.Settings
 
             RunInspectionsOnSuccessfulParse = config.UserSettings.CodeInspectionSettings.RunInspectionsOnSuccessfulParse;
 
-            InspectionSettings.GroupDescriptions?.Add(new PropertyGroupDescription("TypeLabel"));
-            ExportButtonCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), _ => ExportSettings());
+            InspectionSettings.GroupDescriptions?.Add(new PropertyGroupDescription("InspectionType"));
+            ExportButtonCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), _ =>
+                ExportSettings(new CodeInspectionSettings
+                {
+                    CodeInspections =
+                        new HashSet<CodeInspectionSetting>(InspectionSettings.SourceCollection
+                            .OfType<CodeInspectionSetting>()),
+                    WhitelistedIdentifiers = WhitelistedIdentifierSettings.Distinct().ToArray(),
+                    RunInspectionsOnSuccessfulParse = _runInspectionsOnSuccessfulParse
+                }));
             ImportButtonCommand = new DelegateCommand(LogManager.GetCurrentClassLogger(), _ => ImportSettings());
 
             SeverityFilters = new ObservableCollection<string>(
@@ -59,14 +69,16 @@ namespace Rubberduck.UI.Settings
                 if (_inspectionSettingsDescriptionFilter != value)
                 {
                     _inspectionSettingsDescriptionFilter = value;
-                    InspectionSettings.Filter = item => FilterResults(item);
+                    OnPropertyChanged();
+                    InspectionSettings.Filter = FilterResults;
+                    OnPropertyChanged(nameof(InspectionSettings));
                 }
             }
         }
 
         public ObservableCollection<string> SeverityFilters { get; }
 
-        static private readonly string _allResultsFilter = InspectionsUI.ResourceManager.GetString("CodeInspectionSeverity_All", CultureInfo.CurrentUICulture);
+        private static readonly string _allResultsFilter = InspectionsUI.ResourceManager.GetString("CodeInspectionSeverity_All", CultureInfo.CurrentUICulture);
         private string _selectedSeverityFilter = _allResultsFilter;
         public string SelectedSeverityFilter
         {
@@ -77,14 +89,14 @@ namespace Rubberduck.UI.Settings
                 {
                     _selectedSeverityFilter = value.Replace(" ", string.Empty);
                     OnPropertyChanged();
-                    InspectionSettings.Filter = item => FilterResults(item);
+                    InspectionSettings.Filter = FilterResults;
+                    OnPropertyChanged(nameof(InspectionSettings));
                 }
             }
         }        
 
         private bool FilterResults(object setting)
         {
-            OnPropertyChanged(nameof(InspectionSettings));
             var cis = setting as CodeInspectionSetting;
 
             return cis.Description.ToUpper().Contains(_inspectionSettingsDescriptionFilter.ToUpper())
@@ -94,10 +106,7 @@ namespace Rubberduck.UI.Settings
         private ListCollectionView _inspectionSettings;
         public ListCollectionView InspectionSettings
         {
-            get
-            {
-                return _inspectionSettings;
-            }
+            get => _inspectionSettings;
 
             set
             {
@@ -166,6 +175,7 @@ namespace Rubberduck.UI.Settings
         }
 
         private CommandBase _deleteWhitelistedNameCommand;
+
         public CommandBase DeleteWhitelistedNameCommand
         {
             get
@@ -181,7 +191,7 @@ namespace Rubberduck.UI.Settings
             }
         }
 
-        private void TransferSettingsToView(CodeInspectionSettings toLoad)
+        protected override void TransferSettingsToView(CodeInspectionSettings toLoad)
         {
             InspectionSettings = new ListCollectionView(toLoad.CodeInspections.ToList());
             
@@ -191,40 +201,7 @@ namespace Rubberduck.UI.Settings
             RunInspectionsOnSuccessfulParse = true;
         }
 
-        private void ImportSettings()
-        {
-            using (var dialog = new OpenFileDialog
-            {
-                Filter = SettingsUI.DialogMask_XmlFilesOnly,
-                Title = SettingsUI.DialogCaption_LoadInspectionSettings
-            })
-            {
-                dialog.ShowDialog();
-                if (string.IsNullOrEmpty(dialog.FileName)) return;
-                var service = new XmlPersistanceService<CodeInspectionSettings> { FilePath = dialog.FileName };
-                var loaded = service.Load(new CodeInspectionSettings());
-                TransferSettingsToView(loaded);
-            }
-        }
-
-        private void ExportSettings()
-        {
-            using (var dialog = new SaveFileDialog
-            {
-                Filter = SettingsUI.DialogMask_XmlFilesOnly,
-                Title = SettingsUI.DialogCaption_SaveInspectionSettings
-            })
-            {
-                dialog.ShowDialog();
-                if (string.IsNullOrEmpty(dialog.FileName)) return;
-                var service = new XmlPersistanceService<CodeInspectionSettings> { FilePath = dialog.FileName };
-                service.Save(new CodeInspectionSettings
-                {
-                    CodeInspections = new HashSet<CodeInspectionSetting>(InspectionSettings.SourceCollection.OfType<CodeInspectionSetting>()),
-                    WhitelistedIdentifiers = WhitelistedIdentifierSettings.Distinct().ToArray(),
-                    RunInspectionsOnSuccessfulParse = _runInspectionsOnSuccessfulParse
-                });
-            }
-        }
+        protected override string DialogLoadTitle => SettingsUI.DialogCaption_LoadInspectionSettings;
+        protected override string DialogSaveTitle => SettingsUI.DialogCaption_SaveInspectionSettings;
     }
 }

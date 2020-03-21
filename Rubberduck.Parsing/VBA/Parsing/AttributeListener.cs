@@ -42,6 +42,23 @@ namespace Rubberduck.Parsing.VBA.Parsing
             }
         }
 
+        public override void EnterDeclareStmt(VBAParser.DeclareStmtContext context)
+        {
+            var name = Identifier.GetName(context.identifier());
+            var declarationType = context.FUNCTION() != null
+                ? DeclarationType.LibraryFunction
+                : DeclarationType.LibraryProcedure;
+            var attributeScope = (name, declarationType);
+            PushNewScope(attributeScope);
+            _membersAllowingAttributes[attributeScope] = context;
+        }
+
+        public override void ExitDeclareStmt(VBAParser.DeclareStmtContext context)
+        {
+            SaveCurrentScopeAttributes(context);
+            PopScope();
+        }
+
         public override void EnterSubStmt(VBAParser.SubStmtContext context)
         {
             var attributeScope = (Identifier.GetName(context.subroutineName()), DeclarationType.Procedure);
@@ -171,13 +188,6 @@ namespace Rubberduck.Parsing.VBA.Parsing
 
         private static void AddOrUpdateAttribute(Attributes attributes, string attributeName, VBAParser.AttributeStmtContext context)
         {
-            var attribute = attributes.SingleOrDefault(a => a.Name.Equals(attributeName, StringComparison.OrdinalIgnoreCase));
-            if (attribute != null)
-            {
-                attribute.AddContext(context);
-                return;
-            }
-
             attributes.Add(new AttributeNode(context));
         }
     }

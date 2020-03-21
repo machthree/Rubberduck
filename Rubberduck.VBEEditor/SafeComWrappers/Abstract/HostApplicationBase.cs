@@ -173,6 +173,18 @@ namespace Rubberduck.VBEditor.SafeComWrappers.Abstract
             return null;
         }
 
+        public virtual bool CanOpenDocumentDesigner(QualifiedModuleName moduleName)
+        {
+            return false;
+        }
+
+        public virtual bool TryOpenDocumentDesigner(QualifiedModuleName moduleName)
+        {
+            return false;
+        }
+
+        public virtual IEnumerable<HostAutoMacro> AutoMacroIdentifiers => new HostAutoMacro [] { };
+
         private static string GetName(IVBComponent component)
         {
             var name = string.Empty;
@@ -226,6 +238,8 @@ namespace Rubberduck.VBEditor.SafeComWrappers.Abstract
         {
             return IsWrappingNullReference ? 0 : HashCode.Compute(Target);
         }
+
+        protected override void Dispose(bool disposing) => base.Dispose(disposing);
 
         ~HostApplicationBase()
         {

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Rubberduck.VBEditor.Extensions
 {
@@ -42,8 +39,13 @@ namespace Rubberduck.VBEditor.Extensions
             return source.ToDictionary(group => group.Key, group => (IReadOnlyList<TValue>)group.ToList());
         }
 
+        public static IReadOnlyDictionary<TKey, IReadOnlyList<TValue>> ToReadonlyDictionary<TKey, TValue>(this ConcurrentDictionary<TKey, ConcurrentBag<TValue>> source)
+        {
+            return source.ToDictionary(kvp => kvp.Key, kvp => (IReadOnlyList<TValue>)kvp.Value.ToList());
+        }
+
         //See https://stackoverflow.com/a/3804852/5536802
-        public static bool HasEqualContent<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, IDictionary<TKey, TValue> otherDictionary)
+        public static bool HasEqualContent<TKey, TValue>(this IReadOnlyDictionary<TKey, TValue> dictionary, IReadOnlyDictionary<TKey, TValue> otherDictionary)
         {
             return dictionary.Count == otherDictionary.Count && !dictionary.Except(otherDictionary).Any();
         }
